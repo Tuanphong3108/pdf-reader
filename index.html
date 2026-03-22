@@ -429,14 +429,7 @@ window.addEventListener('keydown', (e) => {
 
             try {
                 await renderTask.promise;
-                let tLayer = wrapper.querySelector('.textLayer');
-                if (tLayer) tLayer.remove();
-                tLayer = document.createElement('div');
-                tLayer.className = 'textLayer';
-                wrapper.appendChild(tLayer);
-                const textContent = await page.getTextContent();
-                pdfjsLib.renderTextLayer({textContent, container: tLayer, viewport: vp, textDivs: []});
-
+               
                 wrapper.dataset.rendered = "true";
                 wrapper.dataset.renderedScale = scale;
                 wrapper.dataset.renderedRotation = rotation;
@@ -448,8 +441,6 @@ window.addEventListener('keydown', (e) => {
             if (renderTasks.has(num)) { renderTasks.get(num).cancel(); renderTasks.delete(num); }
             const canvas = wrapper.querySelector('canvas');
             if (canvas) { canvas.width = 0; canvas.height = 0; canvas.remove(); }
-            const tLayer = wrapper.querySelector('.textLayer');
-            if (tLayer) tLayer.remove();
             wrapper.dataset.rendered = "false";
             wrapper.classList.add('loading');
         }
