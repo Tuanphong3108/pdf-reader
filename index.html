@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Reader - Optimized</title>
+    <title>PDF Reader - Pro PWA</title>
     
     <link rel="shortcut icon" href="icon.png" type="image/png">
     <meta name="theme-color" content="#5555A9">
     
+    <!-- PWA Manifest stub - Cần file manifest.json thực tế để File Handlers hoạt động -->
+    <link rel="manifest" href="manifest.json">
+
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     
@@ -48,7 +51,7 @@
         .app-bar-section { display: flex; align-items: center; gap: 4px; }
         .app-title { font-size: 1.1rem; font-weight: 500; margin-left: 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* Main Layout */
+        /* Layout */
         .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         
         .sidebar { 
@@ -71,7 +74,6 @@
         }
         .resize-handle:hover, .resize-handle.active { background: var(--md-sys-color-primary); }
 
-        /* Viewer */
         .viewer-container { 
             flex: 1; 
             background-color: var(--md-sys-color-surface-variant); 
@@ -83,15 +85,9 @@
             scroll-behavior: smooth;
             position: relative;
         }
-        #pages-container { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            width: 100%;
-            transform-origin: top center;
-        }
+        #pages-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 
-        /* PDF Page Styling */
+        /* Page Wrappers */
         .pdf-page-wrapper {
             box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 4px; background: white;
             position: relative; overflow: hidden; 
@@ -112,7 +108,7 @@
         .textLayer { position: absolute; inset: 0; opacity: 1; pointer-events: auto; mix-blend-mode: multiply; }
         .textLayer > span { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
 
-        /* Controls */
+        /* Inputs & Buttons */
         .input-pill {
             background: var(--md-sys-color-surface);
             border: 1px solid var(--md-sys-color-outline);
@@ -130,6 +126,7 @@
             color: var(--md-sys-color-on-surface); position: relative; overflow: hidden; 
         }
         .icon-btn:disabled { opacity: 0.3; cursor: default; }
+        .icon-btn:not(:disabled):hover { background-color: rgba(0,0,0,0.05); }
         .icon-btn:not(:disabled):hover .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
 
         .text-btn { 
@@ -145,6 +142,7 @@
             display: flex; align-items: center; padding: 4px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
             z-index: 500; gap: 4px;
         }
+        .fab-nav.hidden { display: none; }
         
         /* Modal */
         .modal {
@@ -179,7 +177,7 @@
             <button class="icon-btn" id="menu-btn" onclick="toggleSidebar()" disabled>
                 <span class="material-symbols-outlined">menu</span>
             </button>
-            <div class="app-title" id="app-title">PDF Reader</div>
+            <div class="app-title" id="app-title">PDF Reader Pro</div>
         </div>
         <div class="app-bar-section">
             <button class="icon-btn" onclick="zoomOut()" id="zoom-out-btn" disabled><span class="material-symbols-outlined">zoom_out</span></button>
@@ -211,7 +209,8 @@
             <div id="empty-state">
                 <span class="material-symbols-outlined" style="font-size: 64px; margin-bottom: 16px;">picture_as_pdf</span>
                 <h2>Sẵn sàng đọc PDF</h2>
-                <p>Mở tệp để bắt đầu trải nghiệm mượt mà</p>
+                <p>Mở tệp hoặc ném file vào đây để bắt đầu</p>
+                <p style="font-size: 12px; margin-top: 8px; opacity: 0.5;">Hỗ trợ mở file trực tiếp từ hệ thống (PWA)</p>
             </div>
         </main>
 
@@ -235,15 +234,36 @@
     </div>
 
     <script>
+        // --- SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Link trực tiếp đến file sw.js của bro
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW registered!', reg))
+                    .catch(err => console.log('SW registration failed!', err));
+            });
+        }
+
+        // --- LAUNCH QUEUE (PWA FILE HANDLING) ---
+        if ('launchQueue' in window) {
+            window.launchQueue.setConsumer(async (launchParams) => {
+                if (launchParams.files && launchParams.files.length) {
+                    const fileHandle = launchParams.files[0];
+                    const file = await fileHandle.getFile();
+                    loadFile(file);
+                }
+            });
+        }
+
+        // --- PDF ENGINE LOGIC ---
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         let pdfDoc = null, scale = 1.0, baseScale = 1.0, rotation = 0, currPage = 1;
         let isResizing = false;
         let visiblePages = new Set();
-        let renderTasks = new Map(); // Lưu trữ các task render để có thể cancel
+        let renderTasks = new Map();
 
-        // --- PDF Loading ---
         async function loadPDF(data, name) {
             try {
                 pdfDoc = await pdfjsLib.getDocument({data}).promise;
@@ -262,7 +282,7 @@
                 updateInputs();
                 renderStructure();
                 renderThumbnails();
-            } catch (e) { alert("Lỗi tải PDF"); }
+            } catch (e) { alert("Lỗi tải PDF: " + e.message); }
         }
 
         function renderStructure() {
@@ -270,11 +290,10 @@
             container.innerHTML = '';
             for (let i = 1; i <= pdfDoc.numPages; i++) {
                 const wrapper = document.createElement('div');
-                wrapper.className = 'pdf-page-wrapper loading'; // Mặc định là hiện loading
+                wrapper.className = 'pdf-page-wrapper loading';
                 wrapper.id = `page-wrapper-${i}`;
                 wrapper.dataset.pageNumber = i;
                 
-                // Thêm GIF loading vào giữa trang
                 const loader = document.createElement('img');
                 loader.src = 'https://tuanphong3108.github.io/md3-loading/Loading_Indicator.gif';
                 loader.className = 'page-loader';
@@ -285,7 +304,6 @@
             }
         }
 
-        // Intersection Observer để biết trang nào đang ở trong khung hình
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 const num = parseInt(entry.target.dataset.pageNumber);
@@ -297,56 +315,39 @@
                     renderPageOptimized(num, entry.target);
                 } else {
                     visiblePages.delete(num);
-                    unrenderPage(num, entry.target); // Giải phóng RAM khi khuất màn hình
+                    unrenderPage(num, entry.target); // GIẢI PHÓNG RAM NGAY LẬP TỨC
                 }
             });
         }, { threshold: 0.1 });
 
         async function renderPageOptimized(num, wrapper) {
-            // Nếu đã render đúng scale/rotation thì thôi
             if (wrapper.dataset.rendered === "true" && wrapper.dataset.renderedScale == scale && wrapper.dataset.renderedRotation == rotation) {
                 wrapper.classList.remove('loading');
                 return;
             }
 
-            // Hủy task cũ nếu có
-            if (renderTasks.has(num)) {
-                renderTasks.get(num).cancel();
-            }
+            if (renderTasks.has(num)) renderTasks.get(num).cancel();
 
             wrapper.classList.add('loading');
             const page = await pdfDoc.getPage(num);
             const vp = page.getViewport({scale, rotation});
             
-            // Set kích thước khung trước để không bị nhảy layout
             wrapper.style.width = vp.width + 'px';
             wrapper.style.height = vp.height + 'px';
 
             let canvas = wrapper.querySelector('canvas');
-            if (!canvas) {
-                canvas = document.createElement('canvas');
-                wrapper.appendChild(canvas);
-            }
+            if (!canvas) { canvas = document.createElement('canvas'); wrapper.appendChild(canvas); }
             
             const ctx = canvas.getContext('2d');
             const dpr = window.devicePixelRatio || 1;
-            canvas.width = vp.width * dpr;
-            canvas.height = vp.height * dpr;
-            canvas.style.width = vp.width + 'px';
-            canvas.style.height = vp.height + 'px';
+            canvas.width = vp.width * dpr; canvas.height = vp.height * dpr;
+            canvas.style.width = vp.width + 'px'; canvas.style.height = vp.height + 'px';
 
-            const renderTask = page.render({
-                canvasContext: ctx, 
-                viewport: vp, 
-                transform: [dpr, 0, 0, dpr, 0, 0]
-            });
-            
+            const renderTask = page.render({canvasContext: ctx, viewport: vp, transform: [dpr, 0, 0, dpr, 0, 0]});
             renderTasks.set(num, renderTask);
 
             try {
                 await renderTask.promise;
-                
-                // Render Text Layer
                 let tLayer = wrapper.querySelector('.textLayer');
                 if (tLayer) tLayer.remove();
                 tLayer = document.createElement('div');
@@ -359,39 +360,27 @@
                 wrapper.dataset.renderedScale = scale;
                 wrapper.dataset.renderedRotation = rotation;
                 wrapper.classList.remove('loading');
-            } catch (err) {
-                // Task bị hủy hoặc lỗi
-            } finally {
-                renderTasks.delete(num);
-            }
+            } catch (err) {} finally { renderTasks.delete(num); }
         }
 
-        // HÀM QUAN TRỌNG: Giải phóng RAM
         function unrenderPage(num, wrapper) {
             if (renderTasks.has(num)) {
                 renderTasks.get(num).cancel();
                 renderTasks.delete(num);
             }
-            
-            // Xóa canvas và textLayer để giải phóng memory
             const canvas = wrapper.querySelector('canvas');
-            if (canvas) {
-                canvas.width = 0; // Kỹ thuật giải phóng canvas memory ngay lập tức
-                canvas.height = 0;
-                canvas.remove();
+            if (canvas) { 
+                canvas.width = 0; canvas.height = 0; // Kỹ thuật ép dọn RAM
+                canvas.remove(); 
             }
-            
             const tLayer = wrapper.querySelector('.textLayer');
             if (tLayer) tLayer.remove();
-            
             wrapper.dataset.rendered = "false";
-            wrapper.classList.add('loading'); // Hiện lại loading để sẵn sàng nếu quay lại
+            wrapper.classList.add('loading');
         }
 
-        // --- Zoom & Navigation ---
         function updateZoomUI() {
             updateInputs();
-            // Duyệt những trang đang thấy để render lại theo scale mới
             visiblePages.forEach(num => {
                 const wrapper = document.getElementById(`page-wrapper-${num}`);
                 if (wrapper) renderPageOptimized(num, wrapper);
@@ -408,24 +397,13 @@
         function zoomOut() { scale /= 1.25; updateZoomUI(); }
         function rotate() { rotation = (rotation + 90) % 360; updateZoomUI(); }
 
-        // --- Metadata ---
         async function showInfo() {
             if (!pdfDoc) return;
             const meta = await pdfDoc.getMetadata();
             const info = meta.info;
             const list = document.getElementById('meta-list');
-            const data = [
-                ['Tiêu đề', info.Title],
-                ['Tác giả', info.Author],
-                ['Số trang', pdfDoc.numPages],
-                ['Công cụ tạo', info.Producer]
-            ];
-            list.innerHTML = data.map(([l, v]) => `
-                <div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #ddd">
-                    <span style="opacity:0.6">${l}</span>
-                    <span style="font-weight:600">${v || 'Chưa rõ'}</span>
-                </div>
-            `).join('');
+            const data = [['Tiêu đề', info.Title], ['Tác giả', info.Author], ['Số trang', pdfDoc.numPages], ['Công cụ', info.Producer]];
+            list.innerHTML = data.map(([l, v]) => `<div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--md-sys-color-outline-variant)"><span style="opacity:0.6">${l}</span><span style="font-weight:600">${v || 'N/A'}</span></div>`).join('');
             document.getElementById('info-modal').classList.add('active');
         }
 
@@ -438,9 +416,7 @@
 
         function handlePageInput(val) {
             let num = parseInt(val);
-            if (!isNaN(num) && num >= 1 && num <= pdfDoc.numPages) {
-                document.getElementById(`page-wrapper-${num}`).scrollIntoView();
-            }
+            if (!isNaN(num) && num >= 1 && num <= pdfDoc.numPages) document.getElementById(`page-wrapper-${num}`).scrollIntoView();
         }
         function changePage(dir) { handlePageInput(currPage + dir); }
 
@@ -467,16 +443,15 @@
             if (active) active.classList.add('active');
         }
 
-        // File Handler
-        document.getElementById('file-input').onchange = e => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = evt => loadPDF(new Uint8Array(evt.target.result), file.name);
-                reader.readAsArrayBuffer(file);
-            }
-        };
+        function loadFile(file) {
+            const reader = new FileReader();
+            reader.onload = evt => loadPDF(new Uint8Array(evt.target.result), file.name);
+            reader.readAsArrayBuffer(file);
+        }
 
+        document.getElementById('file-input').onchange = e => { if(e.target.files[0]) loadFile(e.target.files[0]); };
+
+        // Sidebar resize
         const sidebar = document.getElementById('sidebar');
         const handle = document.getElementById('resize-handle');
         handle.onmousedown = () => { isResizing = true; handle.classList.add('active'); };
