@@ -562,6 +562,10 @@ window.addEventListener('keydown', (e) => {
         window.onmousemove = e => { if (isResizing && e.clientX > 100 && e.clientX < 500) sidebar.style.width = e.clientX + 'px'; };
         window.onmouseup = () => { isResizing = false; handle.classList.remove('active'); };
 
+        // Chặn menu chuột phải trên toàn bộ trang
+document.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+}, false);
         
     </script>
 </body>
