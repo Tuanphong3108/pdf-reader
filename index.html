@@ -472,14 +472,7 @@ window.addEventListener('keydown', (e) => {
                 printZone.appendChild(canvas);
             }
 ;
-            // Ép kích thước @page và xóa lề trình duyệt để không bị nhảy trang trắng
-            style.innerHTML = `
-                @page { 
-                    size: ${landscapeCount > portraitCount ? 'landscape' : 'portrait'}; 
-                    margin: 0 !important;
-                }
-            `;
-
+          
             overlay.classList.remove('active');
             
             // Delay nhẹ để trình duyệt render canvas vào DOM trước khi gọi in
