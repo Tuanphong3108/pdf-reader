@@ -455,15 +455,12 @@ window.addEventListener('keydown', (e) => {
             printZone.innerHTML = '';
             printZone.style.display = 'block';
 
-            let portraitCount = 0; let landscapeCount = 0;
-
             for (let i = 1; i <= pdfDoc.numPages; i++) {
                 status.textContent = `Đang vẽ bản in: ${i} / ${pdfDoc.numPages}`;
                 const page = await pdfDoc.getPage(i);
                 
                 // Sử dụng scale đủ cao để nét (2.0 là vừa đủ cho A4)
                 const vp = page.getViewport({scale: 2.0, rotation: rotation});
-                if (vp.width > vp.height) landscapeCount++; else portraitCount++;
                 
                 const canvas = document.createElement('canvas');
                 canvas.className = 'print-page';
@@ -474,9 +471,7 @@ window.addEventListener('keydown', (e) => {
                 await page.render({canvasContext: ctx, viewport: vp}).promise;
                 printZone.appendChild(canvas);
             }
-
-            const style = document.getElementById('print-orientation') || document.createElement('style');
-            style.id = 'print-orientation';
+;
             // Ép kích thước @page và xóa lề trình duyệt để không bị nhảy trang trắng
             style.innerHTML = `
                 @page { 
@@ -484,7 +479,6 @@ window.addEventListener('keydown', (e) => {
                     margin: 0 !important;
                 }
             `;
-            if (!style.parentNode) document.head.appendChild(style);
 
             overlay.classList.remove('active');
             
