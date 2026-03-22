@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Reader</title>
+    <title id="tab-title">PDF Reader</title>
     
     <link rel="shortcut icon" href="icon.png" type="image/png">
     <meta name="theme-color" content="#5555A9">
@@ -35,7 +35,7 @@
             --loader-filter: brightness(0) invert(33%) sepia(51%) saturate(674%) hue-rotate(203deg) brightness(96%) contrast(89%);
         }
 
-        /* Dark Theme - Tự động kích hoạt khi hệ điều hành đổi sang tối */
+        /* Dark Theme - Automatic */
         @media (prefers-color-scheme: dark) {
             :root {
                 --md-sys-color-background: #12131A;
@@ -70,7 +70,7 @@
         /* App Bar */
         .app-bar { height: 64px; background-color: var(--md-sys-color-surface-container); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 1000; border-bottom: 1px solid var(--md-sys-color-outline-variant); transition: background-color 0.3s ease; }
         .app-bar-section { display: flex; align-items: center; gap: 4px; }
-        .app-title { font-size: 1.1rem; font-weight: 500; margin-left: 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .app-title { font-size: 1.1rem; font-weight: 500; margin-left: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         /* Layout */
         .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
@@ -216,7 +216,7 @@
             <button class="icon-btn" id="menu-btn" onclick="toggleSidebar()" disabled>
                 <span class="material-symbols-outlined">menu</span>
             </button>
-            <div class="app-title" id="app-title">PDF Reader Pro</div>
+            <div class="app-title" id="app-title">PDF Reader</div>
         </div>
         <div class="app-bar-section">
             <button class="icon-btn" onclick="zoomOut()" id="zoom-out-btn" disabled><span class="material-symbols-outlined">zoom_out</span></button>
@@ -282,7 +282,7 @@
     </div>
 
     <script>
-        // --- LOGIC GIỮ NGUYÊN 100% ---
+        // Init SW
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
@@ -291,6 +291,7 @@
             });
         }
 
+        // PWA Launch Handler
         if ('launchQueue' in window) {
             window.launchQueue.setConsumer(async (launchParams) => {
                 if (launchParams.files && launchParams.files.length) {
@@ -311,9 +312,13 @@
 
         async function loadPDF(data, name) {
             try {
-                // SỬA LỖI: Tự động nhảy về đầu trang khi mở file mới
+                // Nhảy về đầu trang khi mở file mới
                 const viewer = document.getElementById('viewer-container');
                 viewer.scrollTo(0, 0);
+
+                // Cập nhật Tiêu đề Tab cho Tabbed PWA
+                document.title = name;
+                document.getElementById('app-title').textContent = name;
 
                 pdfDoc = await pdfjsLib.getDocument({data}).promise;
                 document.getElementById('empty-state').style.display = 'none';
@@ -321,7 +326,6 @@
                 document.getElementById('fab-nav').classList.remove('hidden');
                 ['menu-btn', 'zoom-out-btn', 'zoom-in-btn', 'rotate-btn', 'info-btn', 'print-btn'].forEach(id => document.getElementById(id).disabled = false);
                 document.getElementById('total-page').textContent = pdfDoc.numPages;
-                document.getElementById('app-title').textContent = name;
                 
                 const page = await pdfDoc.getPage(1);
                 const vp = page.getViewport({scale: 1});
@@ -331,7 +335,16 @@
                 updateInputs();
                 renderStructure();
                 renderThumbnails();
-            } catch (e) { alert("Lỗi tải PDF: " + e.message); }
+            } catch (e) { 
+                alert("Lỗi tải PDF: " + e.message);
+                resetToDefaultState();
+            }
+        }
+
+        function resetToDefaultState() {
+            document.title = "PDF Reader";
+            document.getElementById('app-title').textContent = "PDF Reader";
+            document.getElementById('empty-state').style.display = 'flex';
         }
 
         function renderStructure() {
@@ -458,10 +471,6 @@
                 if (style) style.remove();
             }, 500);
         }
-
-        window.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); preparePrint(); }
-        });
 
         function updateZoomUI() {
             updateInputs();
