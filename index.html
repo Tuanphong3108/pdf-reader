@@ -20,6 +20,7 @@
             --md-sys-color-on-background: #1A1B23;
             --md-sys-color-surface: #FDFBFF;
             --md-sys-color-surface-container: #EFEDF4;
+            --md-sys-color-surface-container-high: #E9E7EF;
             --md-sys-color-on-surface: #1A1B23;
             --md-sys-color-primary: #5555A9;
             --md-sys-color-on-primary: #FFFFFF;
@@ -28,6 +29,7 @@
             --md-sys-color-outline: #777680;
             --md-sys-color-surface-variant: #E4E1EC;
             --md-sys-color-outline-variant: #C8C5D0;
+            --md-sys-color-scrim: rgba(0, 0, 0, 0.4);
             --loader-filter: brightness(0) invert(33%) sepia(51%) saturate(674%) hue-rotate(203deg) brightness(96%) contrast(89%);
         }
 
@@ -37,6 +39,7 @@
             background-color: var(--md-sys-color-background);
             color: var(--md-sys-color-on-background);
             height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+            touch-action: none;
         }
 
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -46,19 +49,21 @@
         .app-bar-section { display: flex; align-items: center; gap: 4px; }
         .app-title { font-size: 1.1rem; font-weight: 500; margin-left: 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* Sidebar with Animation */
+        /* Main Layout */
         .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         
         .sidebar { 
-            width: 260px; min-width: 150px; max-width: 500px;
+            width: 260px; min-width: 0; max-width: 500px;
             background-color: var(--md-sys-color-surface); 
             display: flex; flex-direction: column;
             position: relative; 
-            transition: width 0.4s cubic-bezier(0.3, 0, 0, 1), transform 0.4s cubic-bezier(0.3, 0, 0, 1);
+            transition: width 0.4s cubic-bezier(0.3, 0, 0, 1), transform 0.4s cubic-bezier(0.3, 0, 0, 1), opacity 0.3s;
             border-right: 1px solid var(--md-sys-color-outline-variant);
+            overflow: hidden;
         }
-        .sidebar.collapsed { width: 0 !important; min-width: 0; transform: translateX(-100%); border: none; }
-        .sidebar-content { flex: 1; overflow-y: auto; padding: 16px; width: 260px; } 
+        .sidebar.collapsed { width: 0 !important; transform: translateX(-100%); opacity: 0; pointer-events: none; }
+        .sidebar.hidden-state { display: none; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 16px; width: 100%; } 
 
         .resize-handle {
             width: 4px; height: 100%; cursor: col-resize;
@@ -68,17 +73,68 @@
         .resize-handle:hover, .resize-handle.active { background: var(--md-sys-color-primary); }
 
         /* Viewer */
-        .viewer-container { flex: 1; background-color: var(--md-sys-color-surface-variant); overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 40px 16px; scroll-behavior: smooth; }
-        #pages-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .viewer-container { 
+            flex: 1; 
+            background-color: var(--md-sys-color-surface-variant); 
+            overflow: auto; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 40px 16px; 
+            scroll-behavior: smooth;
+            position: relative;
+        }
+        #pages-container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            width: 100%;
+            transform-origin: top center;
+            transition: transform 0.1s ease-out; 
+        }
+
+        /* Empty State */
+        .empty-state {
+            position: absolute; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+            padding: 32px; color: var(--md-sys-color-outline);
+            z-index: 10;
+        }
+        .empty-state .icon-box {
+            width: 120px; height: 120px; border-radius: 32px;
+            background: var(--md-sys-color-surface-container);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 24px; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .empty-state .icon-box span { font-size: 64px; }
+
+        /* Modal / Dialog */
+        .modal {
+            position: fixed; inset: 0; background: var(--md-sys-color-scrim);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 5000; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(4px);
+        }
+        .modal.active { opacity: 1; pointer-events: auto; }
+        .modal-card {
+            background: var(--md-sys-color-surface-container-high);
+            width: 90%; max-width: 400px;
+            border-radius: 28px; padding: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            transform: scale(0.8) translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .modal.active .modal-card { transform: scale(1) translateY(0); }
 
         .pdf-page-wrapper {
             box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 4px; background: white;
-            position: relative; overflow: hidden; transform-origin: top center;
+            position: relative; overflow: hidden; 
             margin-bottom: 24px;
-            transition: margin-bottom 0.3s ease;
+            flex-shrink: 0;
         }
         
-        .textLayer { position: absolute; inset: 0; opacity: 0.2; line-height: 1.0; pointer-events: auto; mix-blend-mode: multiply; }
+        .textLayer { position: absolute; inset: 0; opacity: 1; pointer-events: auto; mix-blend-mode: multiply; }
         .textLayer > span { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
 
         /* Input Controls */
@@ -86,7 +142,6 @@
             background: var(--md-sys-color-surface);
             border: 1px solid var(--md-sys-color-outline);
             border-radius: 8px; height: 32px; display: flex; align-items: center; padding: 0 8px;
-            transition: border 0.2s;
         }
         .input-pill:focus-within { border: 2px solid var(--md-sys-color-primary); }
         .input-pill input {
@@ -94,44 +149,34 @@
             font-family: inherit; font-weight: 700; color: inherit; width: 45px; font-size: 14px;
         }
 
-        /* Modal */
-        .modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none;
-            align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(4px);
-        }
-        .modal.active { display: flex; }
-        .modal-card {
-            background: var(--md-sys-color-surface-container); padding: 24px; border-radius: 28px;
-            width: 90%; max-width: 400px; box-shadow: 0 15px 30px rgba(0,0,0,0.2);
-        }
-
-        /* Buttons & Ripple */
+        /* Buttons & Nav */
         .icon-btn { 
             width: 40px; height: 40px; border: none; background: transparent; border-radius: 50%; 
             cursor: pointer; display: flex; align-items: center; justify-content: center; 
             color: var(--md-sys-color-on-surface); position: relative; overflow: hidden; 
         }
-        .icon-btn::after {
-            content: ""; position: absolute; inset: 0; background: currentColor; opacity: 0; transition: opacity 0.2s;
-        }
-        .icon-btn:hover::after { opacity: 0.08; }
-        .icon-btn:active::after { opacity: 0.16; }
-        .icon-btn:hover .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+        .icon-btn:disabled { opacity: 0.3; cursor: default; }
+        .icon-btn::after { content: ""; position: absolute; inset: 0; background: currentColor; opacity: 0; transition: opacity 0.2s; }
+        .icon-btn:not(:disabled):active::after { opacity: 0.2; } /* Ripple effect simplified */
+        .icon-btn:not(:disabled):hover::after { opacity: 0.08; }
+        .icon-btn:not(:disabled):hover .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
 
         .text-btn { 
             height: 40px; padding: 0 24px; background: var(--md-sys-color-primary); 
             color: var(--md-sys-color-on-primary); border: none; border-radius: 100px; 
             font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; 
-            transition: box-shadow 0.2s;
+            transition: all 0.2s;
         }
-        .text-btn:hover { box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .text-btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.2); transform: translateY(-1px); }
+        .text-btn:active { transform: translateY(0); opacity: 0.9; }
         
         .fab-nav { 
             position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); 
             background: var(--md-sys-color-surface-container); border-radius: 100px; 
             display: flex; align-items: center; padding: 4px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-            z-index: 500; gap: 4px; 
+            z-index: 500; gap: 4px; transition: transform 0.3s cubic-bezier(0.3, 0, 0, 1);
         }
+        .fab-nav.hidden { transform: translate(-50%, 100px); }
         
         .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; backdrop-filter: blur(2px); }
         .loading-overlay.active { display: flex; }
@@ -141,16 +186,12 @@
         .thumb-item.active { background: var(--md-sys-color-primary-container); border-color: var(--md-sys-color-primary); }
         input[type="file"] { display: none; }
 
-        /* Print Styles */
         @media print {
             body, .main-container, .viewer-container { overflow: visible !important; height: auto !important; background: white !important; padding: 0 !important; }
-            .app-bar, .sidebar, .fab-nav, .icon-btn, .text-btn, .loading-overlay { display: none !important; }
-            #pages-container { width: 100% !important; }
-            .pdf-page-wrapper { 
-                box-shadow: none !important; margin: 0 !important; border: none !important; 
-                page-break-after: always; display: block !important;
-            }
-            canvas { width: 100% !important; height: auto !important; }
+            .app-bar, .sidebar, .fab-nav, .icon-btn, .text-btn, .loading-overlay, .empty-state, .resize-handle, .modal { display: none !important; }
+            #pages-container { width: 100% !important; transform: none !important; }
+            .pdf-page-wrapper { box-shadow: none !important; margin: 0 !important; border: none !important; page-break-after: always; display: block !important; }
+            @page { size: auto; margin: 0; }
         }
     </style>
 </head>
@@ -158,21 +199,23 @@
 
     <header class="app-bar">
         <div class="app-bar-section">
-            <button class="icon-btn" onclick="toggleSidebar()" title="Thanh bên"><span class="material-symbols-outlined">menu</span></button>
+            <button class="icon-btn" id="menu-btn" onclick="toggleSidebar()" title="Thanh bên" disabled>
+                <span class="material-symbols-outlined">menu</span>
+            </button>
             <div class="app-title" id="app-title">PDF Reader</div>
         </div>
         <div class="app-bar-section">
-            <button class="icon-btn" onclick="zoomOut()"><span class="material-symbols-outlined">zoom_out</span></button>
+            <button class="icon-btn" onclick="zoomOut()" id="zoom-out-btn" disabled><span class="material-symbols-outlined">zoom_out</span></button>
             <div class="input-pill">
                 <input type="text" id="zoom-input" value="100" onchange="handleZoomInput(this.value)" onkeypress="return isNumberKey(event)">
                 <span style="font-size: 12px; font-weight: 700; opacity: 0.7; margin-right: 4px;">%</span>
             </div>
-            <button class="icon-btn" onclick="zoomIn()"><span class="material-symbols-outlined">zoom_in</span></button>
-            <button class="icon-btn" onclick="rotate()"><span class="material-symbols-outlined">rotate_right</span></button>
-            <button class="icon-btn" onclick="preparePrint()" title="In (Ctrl + P)"><span class="material-symbols-outlined">print</span></button>
+            <button class="icon-btn" onclick="zoomIn()" id="zoom-in-btn" disabled><span class="material-symbols-outlined">zoom_in</span></button>
+            <button class="icon-btn" onclick="rotate()" id="rotate-btn" disabled><span class="material-symbols-outlined">rotate_right</span></button>
+            <button class="icon-btn" onclick="preparePrint()" id="print-btn" title="In (Ctrl + P)" disabled><span class="material-symbols-outlined">print</span></button>
         </div>
         <div class="app-bar-section">
-            <button class="icon-btn" onclick="showInfo()"><span class="material-symbols-outlined">info</span></button>
+            <button class="icon-btn" onclick="showInfo()" id="info-btn" disabled><span class="material-symbols-outlined">info</span></button>
             <button class="text-btn" onclick="document.getElementById('file-input').click()">
                 <span class="material-symbols-outlined">file_open</span>Mở tệp
             </button>
@@ -181,20 +224,29 @@
     </header>
 
     <div class="main-container">
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar collapsed hidden-state" id="sidebar">
             <div class="sidebar-content" id="sidebar-content"></div>
             <div class="resize-handle" id="resize-handle"></div>
         </aside>
 
         <main class="viewer-container" id="viewer-container">
             <div id="pages-container"></div>
+            
+            <div class="empty-state" id="empty-state">
+                <div class="icon-box">
+                    <span class="material-symbols-outlined">picture_as_pdf</span>
+                </div>
+                <h2>Chưa có tài liệu</h2>
+                <p>Thả tệp PDF vào đây hoặc bấm nút <b>"Mở tệp"</b></p>
+            </div>
+
             <div class="loading-overlay" id="global-loader">
                 <img src="https://tuanphong3108.github.io/md3-loading/Loading_Indicator.gif" class="global-loader">
-                <p id="loader-text">Đang tải tài liệu...</p>
+                <p id="loader-text" style="margin-top: 16px; font-weight: 500;">Đang tải...</p>
             </div>
         </main>
 
-        <nav class="fab-nav" id="fab-nav" style="display: none;">
+        <nav class="fab-nav hidden" id="fab-nav">
             <button class="icon-btn" onclick="changePage(-1)"><span class="material-symbols-outlined">arrow_upward</span></button>
             <div class="input-pill" style="height: 36px; border-radius: 100px;">
                 <input type="text" id="curr-page-input" value="1" onchange="handlePageInput(this.value)" onkeypress="return isNumberKey(event)">
@@ -205,141 +257,45 @@
         </nav>
     </div>
 
-    <div class="modal" id="info-modal" onclick="this.classList.remove('active')">
+    <!-- Modal Thông tin -->
+    <div class="modal" id="info-modal" onclick="closeModal()">
         <div class="modal-card" onclick="event.stopPropagation()">
-            <h3 style="margin-bottom: 20px;">Thuộc tính tài liệu</h3>
+            <h3 style="margin-bottom: 24px; font-weight: 600;">Thuộc tính tài liệu</h3>
             <div id="meta-list"></div>
-            <button class="text-btn" style="width: 100%; margin-top: 16px; justify-content: center;" onclick="document.getElementById('info-modal').classList.remove('active')">Đóng</button>
+            <button class="text-btn" style="width: 100%; margin-top: 24px; justify-content: center;" onclick="closeModal()">Đóng</button>
         </div>
     </div>
 
     <script>
-        // --- PWA Service Worker Registration ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => {
-                    console.warn('Service Worker registration skipped for local dev.');
-                });
-            });
-        }
-
-        // --- File Launch Handler ---
-        if ('launchQueue' in window) {
-            launchQueue.setConsumer(async (launchParams) => {
-                if (launchParams.files.length > 0) {
-                    const fileHandle = launchParams.files[0];
-                    const file = await fileHandle.getFile();
-                    loadFile(file);
-                }
-            });
-        }
-
-        // --- Hotkeys ---
-        window.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-                e.preventDefault();
-                preparePrint();
-            }
-        });
-
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        let pdfDoc = null, scale = 1.0, rotation = 0, currPage = 1;
+        let pdfDoc = null, scale = 1.0, baseScale = 1.0, rotation = 0, currPage = 1;
         let isResizing = false;
+        let renderTimeout = null;
 
-        // --- Core Functions ---
-        function loadFile(file) {
-            const reader = new FileReader();
-            reader.onload = evt => loadPDF(new Uint8Array(evt.target.result), file.name);
-            reader.readAsArrayBuffer(file);
-        }
-
-        async function preparePrint() {
-            if (!pdfDoc) return;
-            
-            const loader = document.getElementById('global-loader');
-            const loaderText = document.getElementById('loader-text');
-            loader.classList.add('active');
-            loaderText.textContent = "Đang chuẩn bị bản in...";
-
-            // Duyệt qua tất cả các trang để đảm bảo chúng đã được render
-            const wrappers = document.querySelectorAll('.pdf-page-wrapper');
-            for (let i = 0; i < wrappers.length; i++) {
-                const wrapper = wrappers[i];
-                const pageNum = parseInt(wrapper.dataset.pageNumber);
-                
-                // Update text cho người dùng đỡ sốt ruột
-                loaderText.textContent = `Đang chuẩn bị trang ${pageNum}/${pdfDoc.numPages}...`;
-                
-                // Render trang nếu nó chưa được render ở scale hiện tại
-                await renderPage(pageNum, wrapper);
-            }
-
-            loader.classList.remove('active');
-            window.print();
-        }
-
-        // --- Utils ---
-        function isNumberKey(evt) {
-            var charCode = (evt.which) ? evt.which : evt.keyCode;
-            if (charCode > 31 && (charCode < 48 || charCode > 57)) return false;
-            return true;
-        }
-
-        function deselectText(e) {
-            if (e.target.id === 'viewer-container' || e.target.id === 'pages-container' || e.target.id === 'sidebar-content') {
-                window.getSelection().removeAllRanges();
-            }
-        }
-
-        // --- Sidebar Resize ---
-        const sidebar = document.getElementById('sidebar');
-        const handle = document.getElementById('resize-handle');
-
-        handle.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            handle.classList.add('active');
-            document.body.style.cursor = 'col-resize';
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            let newWidth = e.clientX;
-            if (newWidth > 150 && newWidth < 500) {
-                sidebar.style.width = newWidth + 'px';
-                document.getElementById('sidebar-content').style.width = newWidth + 'px';
-            }
-        });
-
-        window.addEventListener('mouseup', () => {
-            isResizing = false;
-            handle.classList.remove('active');
-            document.body.style.cursor = 'default';
-        });
-
-        function toggleSidebar() { 
-            sidebar.classList.toggle('collapsed'); 
-        }
-
-        // --- PDF Logic ---
+        // --- PDF Loading ---
         async function loadPDF(data, name) {
-            document.getElementById('loader-text').textContent = "Đang tải tài liệu...";
+            document.getElementById('loader-text').textContent = "Đang xử lý PDF...";
             document.getElementById('global-loader').classList.add('active');
             try {
                 pdfDoc = await pdfjsLib.getDocument({data}).promise;
+                document.getElementById('empty-state').style.display = 'none';
+                document.getElementById('sidebar').classList.remove('hidden-state');
+                document.getElementById('fab-nav').classList.remove('hidden');
+                ['menu-btn', 'zoom-out-btn', 'zoom-in-btn', 'rotate-btn', 'print-btn', 'info-btn'].forEach(id => document.getElementById(id).disabled = false);
                 document.getElementById('total-page').textContent = pdfDoc.numPages;
-                document.getElementById('fab-nav').style.display = 'flex';
                 document.getElementById('app-title').textContent = name;
                 
                 const page = await pdfDoc.getPage(1);
                 const vp = page.getViewport({scale: 1});
-                scale = (document.getElementById('viewer-container').clientWidth - 100) / vp.width;
+                baseScale = (document.getElementById('viewer-container').clientWidth - 80) / vp.width;
+                scale = baseScale;
+                
                 updateInputs();
-
                 renderStructure();
                 renderThumbnails();
-            } catch (e) { console.error(e); }
+            } catch (e) { alert("Lỗi tải PDF"); }
             document.getElementById('global-loader').classList.remove('active');
         }
 
@@ -354,42 +310,40 @@
                 container.appendChild(wrapper);
                 observer.observe(wrapper);
             }
-            adjustPageSpacing();
         }
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                const num = parseInt(entry.target.dataset.pageNumber);
                 if (entry.isIntersecting) {
+                    const num = parseInt(entry.target.dataset.pageNumber);
                     renderPage(num, entry.target);
                     currPage = num;
                     document.getElementById('curr-page-input').value = num;
                     updateActiveThumb();
                 }
             });
-        }, { threshold: 0.1 });
+        }, { threshold: 0.15 });
 
         async function renderPage(num, wrapper) {
-            if (wrapper.dataset.rendered === "true" && wrapper.dataset.scale == scale && wrapper.dataset.rotation == rotation) return;
-
+            if (wrapper.dataset.rendered === "true" && wrapper.dataset.renderedScale == scale && wrapper.dataset.renderedRotation == rotation) return;
+            
             const page = await pdfDoc.getPage(num);
             const vp = page.getViewport({scale, rotation});
             
             let canvas = wrapper.querySelector('canvas');
-            if (!canvas) {
-                canvas = document.createElement('canvas');
-                wrapper.appendChild(canvas);
-            }
-
+            if (!canvas) { canvas = document.createElement('canvas'); wrapper.appendChild(canvas); }
+            
             const ctx = canvas.getContext('2d');
             const dpr = window.devicePixelRatio || 1;
+            
+            wrapper.style.width = vp.width + 'px';
+            wrapper.style.height = vp.height + 'px';
+            
             canvas.width = vp.width * dpr;
             canvas.height = vp.height * dpr;
             canvas.style.width = vp.width + 'px';
             canvas.style.height = vp.height + 'px';
-            wrapper.style.width = vp.width + 'px';
-            wrapper.style.height = vp.height + 'px';
-
+            
             await page.render({canvasContext: ctx, viewport: vp, transform: [dpr, 0, 0, dpr, 0, 0]}).promise;
             
             let tLayer = wrapper.querySelector('.textLayer');
@@ -397,86 +351,83 @@
             tLayer = document.createElement('div');
             tLayer.className = 'textLayer';
             wrapper.appendChild(tLayer);
-            
             const textContent = await page.getTextContent();
             pdfjsLib.renderTextLayer({textContent, container: tLayer, viewport: vp, textDivs: []});
-
+            
             wrapper.dataset.rendered = "true";
-            wrapper.dataset.scale = scale;
-            wrapper.dataset.rotation = rotation;
+            wrapper.dataset.renderedScale = scale;
+            wrapper.dataset.renderedRotation = rotation;
         }
 
-        function adjustPageSpacing() {
-            const baseGap = 24;
-            const dynamicGap = Math.max(12, baseGap / (scale * 0.8));
-            document.querySelectorAll('.pdf-page-wrapper').forEach(w => {
-                w.style.marginBottom = dynamicGap + 'px';
-            });
+        // --- Zoom ---
+        function updateZoomUI() {
+            updateInputs();
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => {
+                document.querySelectorAll('.pdf-page-wrapper').forEach(w => {
+                    const rect = w.getBoundingClientRect();
+                    if (rect.top < window.innerHeight && rect.bottom > 0) renderPage(parseInt(w.dataset.pageNumber), w);
+                    else w.dataset.rendered = "false";
+                });
+            }, 300);
         }
 
         function handleZoomInput(val) {
             let num = parseInt(val);
-            if (isNaN(num)) num = 100;
-            if (num < 10) num = 10;
-            if (num > 500) num = 500;
-            scale = num / 100;
-            updateZoom();
+            scale = Math.min(Math.max(isNaN(num) ? 100 : num / 100, 0.1), 5) * baseScale;
+            updateZoomUI();
         }
 
-        function handlePageInput(val) {
-            let num = parseInt(val);
-            if (isNaN(num) || num < 1) num = 1;
-            if (num > pdfDoc.numPages) num = pdfDoc.numPages;
-            document.getElementById(`page-wrapper-${num}`).scrollIntoView();
+        function zoomIn() { scale *= 1.25; updateZoomUI(); }
+        function zoomOut() { scale /= 1.25; updateZoomUI(); }
+        function rotate() { rotation = (rotation + 90) % 360; updateZoomUI(); }
+
+        // --- Modal Logic (FIXED) ---
+        async function showInfo() {
+            if (!pdfDoc) return;
+            const meta = await pdfDoc.getMetadata();
+            const info = meta.info;
+            const list = document.getElementById('meta-list');
+            const items = [
+                { label: 'Tiêu đề', val: info.Title },
+                { label: 'Tác giả', val: info.Author },
+                { label: 'Ngày tạo', val: info.CreationDate ? new Date(info.CreationDate).toLocaleDateString('vi-VN') : null },
+                { label: 'Phần mềm', val: info.Producer },
+                { label: 'Số trang', val: pdfDoc.numPages }
+            ];
+            list.innerHTML = items.map(i => `
+                <div style="padding: 12px 0; border-bottom: 1px solid var(--md-sys-color-outline-variant); display: flex; justify-content: space-between;">
+                    <span style="font-weight: 500; opacity: 0.6; font-size: 0.9rem;">${i.label}:</span>
+                    <span style="font-weight: 600; text-align: right; font-size: 0.9rem; margin-left: 12px;">${i.val || 'N/A'}</span>
+                </div>
+            `).join('');
+            document.getElementById('info-modal').classList.add('active');
         }
 
-        function zoomIn() { scale += 0.2; if(scale > 5) scale = 5; updateZoom(); }
-        function zoomOut() { scale -= 0.2; if(scale < 0.1) scale = 0.1; updateZoom(); }
-        function rotate() { rotation = (rotation + 90) % 360; updateZoom(); }
+        function closeModal() { document.getElementById('info-modal').classList.remove('active'); }
 
-        function updateZoom() {
-            updateInputs();
-            adjustPageSpacing();
-            document.querySelectorAll('.pdf-page-wrapper').forEach(w => {
-                w.dataset.rendered = "false";
-                w.style.transform = `scale(${scale / (w.dataset.scale || scale)})`;
-            });
-            const visible = document.querySelectorAll('.pdf-page-wrapper');
-            visible.forEach(w => {
-                const rect = w.getBoundingClientRect();
-                if (rect.top < window.innerHeight && rect.bottom > 0) renderPage(parseInt(w.dataset.pageNumber), w);
-            });
-        }
-
-        function updateInputs() {
-            document.getElementById('zoom-input').value = Math.round(scale * 100);
+        // --- Sidebar & Others ---
+        function toggleSidebar() { sidebar.classList.toggle('collapsed'); }
+        function updateInputs() { 
+            document.getElementById('zoom-input').value = Math.round((scale / baseScale) * 100); 
             document.getElementById('curr-page-input').value = currPage;
         }
-
-        function changePage(dir) {
-            const target = currPage + dir;
-            if (target >= 1 && target <= pdfDoc.numPages) {
-                document.getElementById(`page-wrapper-${target}`).scrollIntoView();
-            }
+        function handlePageInput(val) {
+            let num = parseInt(val);
+            if (!isNaN(num) && num >= 1 && num <= pdfDoc.numPages) document.getElementById(`page-wrapper-${num}`).scrollIntoView();
         }
+        function changePage(dir) { handlePageInput(currPage + dir); }
 
         async function renderThumbnails() {
             const side = document.getElementById('sidebar-content');
             side.innerHTML = '';
             for (let i = 1; i <= pdfDoc.numPages; i++) {
                 const div = document.createElement('div');
-                div.className = 'thumb-item';
-                div.id = `thumb-${i}`;
+                div.className = 'thumb-item'; div.id = `thumb-${i}`;
                 div.onclick = () => document.getElementById(`page-wrapper-${i}`).scrollIntoView();
-                
-                const can = document.createElement('canvas');
-                can.style.width = '100%';
-                div.appendChild(can);
-                const label = document.createElement('div');
-                label.style.textAlign = 'center'; label.style.fontSize = '12px'; label.textContent = i; label.style.fontWeight = '700';
-                div.appendChild(label);
-                side.appendChild(div);
-
+                const can = document.createElement('canvas'); can.style.width = '100%'; div.appendChild(can);
+                const label = document.createElement('div'); label.style.textAlign = 'center'; label.style.fontSize = '12px'; label.textContent = i; label.style.fontWeight = '700';
+                div.appendChild(label); side.appendChild(div);
                 const page = await pdfDoc.getPage(i);
                 const vp = page.getViewport({scale: 0.2});
                 can.width = vp.width; can.height = vp.height;
@@ -490,31 +441,40 @@
             if (active) active.classList.add('active');
         }
 
-        async function showInfo() {
-            if (!pdfDoc) return;
-            const meta = await pdfDoc.getMetadata();
-            const info = meta.info;
-            const list = document.getElementById('meta-list');
-            const rows = [
-                ['Tiêu đề', info.Title],
-                ['Tác giả', info.Author],
-                ['Ứng dụng', info.Creator],
-                ['Phiên bản', meta.metadata?.get('pdf:pdfversion')],
-                ['Số trang', pdfDoc.numPages]
-            ];
-            list.innerHTML = rows.map(r => `
-                <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--md-sys-color-outline-variant)">
-                    <span style="opacity:0.6; font-size:14px; font-weight:600;">${r[0]}:</span>
-                    <span style="font-size:14px; font-weight:600; text-align:right;">${r[1] || '-'}</span>
-                </div>
-            `).join('');
-            document.getElementById('info-modal').classList.add('active');
+        // --- File Handling ---
+        function loadFile(file) {
+            const reader = new FileReader();
+            reader.onload = evt => loadPDF(new Uint8Array(evt.target.result), file.name);
+            reader.readAsArrayBuffer(file);
         }
 
-        document.getElementById('file-input').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (file) loadFile(file);
-        });
+        document.getElementById('file-input').onchange = e => { if(e.target.files[0]) loadFile(e.target.files[0]); };
+        
+        // Drag & Drop
+        window.ondragover = e => { e.preventDefault(); document.body.classList.add('drag-over'); };
+        window.ondragleave = e => { if (e.relatedTarget === null) document.body.classList.remove('drag-over'); };
+        window.ondrop = e => {
+            e.preventDefault(); document.body.classList.remove('drag-over');
+            if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+        };
+
+        // Resize Sidebar
+        const sidebar = document.getElementById('sidebar');
+        const handle = document.getElementById('resize-handle');
+        handle.onmousedown = () => { isResizing = true; handle.classList.add('active'); };
+        window.onmousemove = e => { if (isResizing && e.clientX > 100 && e.clientX < 500) sidebar.style.width = e.clientX + 'px'; };
+        window.onmouseup = () => { isResizing = false; handle.classList.remove('active'); };
+
+        function deselectText(e) { if (e.target.id === 'viewer-container') window.getSelection().removeAllRanges(); }
+        function isNumberKey(evt) { return (evt.charCode >= 48 && evt.charCode <= 57); }
+        
+        async function preparePrint() {
+            if (!pdfDoc) return;
+            document.getElementById('global-loader').classList.add('active');
+            for (let i = 1; i <= pdfDoc.numPages; i++) await renderPage(i, document.getElementById(`page-wrapper-${i}`));
+            document.getElementById('global-loader').classList.remove('active');
+            window.print();
+        }
     </script>
 </body>
 </html>
