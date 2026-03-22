@@ -61,7 +61,6 @@
             background-color: var(--md-sys-color-background);
             color: var(--md-sys-color-on-background);
             height: 100vh; display: flex; flex-direction: column; overflow: hidden;
-            touch-action: none;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
@@ -200,12 +199,27 @@
             padding: 32px; color: var(--md-sys-color-outline);
         }
 
+        /* FIX PRINTING WHITESPACE */
         @media print {
             body * { visibility: hidden; }
             #print-zone, #print-zone * { visibility: visible; }
-            #print-zone { position: absolute; left: 0; top: 0; width: 100%; }
-            .print-page { page-break-after: always; display: block; width: 100%; height: auto; margin: 0; border: none; }
-            @page { margin: 0; }
+            #print-zone { 
+                position: absolute; left: 0; top: 0; width: 100%; 
+                display: block !important; /* Đảm bảo hiển thị khi in */
+                background: white;
+            }
+            .print-page { 
+                display: block; 
+                width: 100vw; 
+                height: 100vh; 
+                margin: 0; 
+                padding: 0;
+                border: none;
+                page-break-after: always; /* Luôn ngắt trang sau mỗi canvas */
+                page-break-inside: avoid;
+                image-rendering: -webkit-optimize-contrast; /* Giúp in nét hơn trên Chrome */
+            }
+            @page { margin: 0; padding: 0; }
         }
     </style>
 </head>
@@ -312,11 +326,9 @@
 
         async function loadPDF(data, name) {
             try {
-                // Nhảy về đầu trang khi mở file mới
                 const viewer = document.getElementById('viewer-container');
                 viewer.scrollTo(0, 0);
 
-                // Cập nhật Tiêu đề Tab cho Tabbed PWA
                 document.title = name;
                 document.getElementById('app-title').textContent = name;
 
@@ -447,29 +459,43 @@
             let portraitCount = 0; let landscapeCount = 0;
 
             for (let i = 1; i <= pdfDoc.numPages; i++) {
-                status.textContent = `Đang chuẩn bị: ${i} / ${pdfDoc.numPages} trang`;
+                status.textContent = `Đang vẽ bản in: ${i} / ${pdfDoc.numPages}`;
                 const page = await pdfDoc.getPage(i);
+                
+                // Sử dụng scale đủ cao để nét (2.0 là vừa đủ cho A4)
                 const vp = page.getViewport({scale: 2.0, rotation: rotation});
                 if (vp.width > vp.height) landscapeCount++; else portraitCount++;
+                
                 const canvas = document.createElement('canvas');
                 canvas.className = 'print-page';
                 const ctx = canvas.getContext('2d');
-                canvas.width = vp.width; canvas.height = vp.height;
+                canvas.width = vp.width; 
+                canvas.height = vp.height;
+                
                 await page.render({canvasContext: ctx, viewport: vp}).promise;
                 printZone.appendChild(canvas);
             }
 
-            const style = document.createElement('style');
+            const style = document.getElementById('print-orientation') || document.createElement('style');
             style.id = 'print-orientation';
-            style.innerHTML = `@page { size: ${landscapeCount > portraitCount ? 'landscape' : 'portrait'}; }`;
-            document.head.appendChild(style);
+            // Ép kích thước @page và xóa lề trình duyệt để không bị nhảy trang trắng
+            style.innerHTML = `
+                @page { 
+                    size: ${landscapeCount > portraitCount ? 'landscape' : 'portrait'}; 
+                    margin: 0 !important;
+                }
+            `;
+            if (!style.parentNode) document.head.appendChild(style);
 
             overlay.classList.remove('active');
-            window.print();
+            
+            // Delay nhẹ để trình duyệt render canvas vào DOM trước khi gọi in
             setTimeout(() => {
-                printZone.innerHTML = ''; printZone.style.display = 'none';
-                if (style) style.remove();
-            }, 500);
+                window.print();
+                // Sau khi in xong (hoặc hủy), dọn dẹp zone
+                printZone.innerHTML = ''; 
+                printZone.style.display = 'none';
+            }, 300);
         }
 
         function updateZoomUI() {
