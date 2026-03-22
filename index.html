@@ -129,19 +129,14 @@
         .textLayer { position: absolute; inset: 0; opacity: 1; pointer-events: auto; mix-blend-mode: multiply; }
         .textLayer > span { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
 
-        /* Inputs & Buttons */
-        .input-pill {
-            background: var(--md-sys-color-surface);
-            border: 1px solid var(--md-sys-color-outline);
-            border-radius: 8px; height: 32px; display: flex; align-items: center; padding: 0 8px;
-            transition: background-color 0.3s, border-color 0.3s;
+        /* Ripple Effect */
+        .ripple {
+            position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.3);
+            transform: scale(0); animation: ripple-animation 0.6s linear; pointer-events: none;
         }
-        .input-pill:focus-within { border: 2px solid var(--md-sys-color-primary); }
-        .input-pill input {
-            border: none; background: transparent; outline: none; text-align: center;
-            font-family: inherit; font-weight: 700; color: inherit; width: 45px; font-size: 14px;
-        }
+        @keyframes ripple-animation { to { transform: scale(4); opacity: 0; } }
 
+        /* Buttons */
         .icon-btn { 
             width: 40px; height: 40px; border: none; background: transparent; border-radius: 50%; 
             cursor: pointer; display: flex; align-items: center; justify-content: center; 
@@ -155,9 +150,23 @@
             height: 40px; padding: 0 24px; background: var(--md-sys-color-primary); 
             color: var(--md-sys-color-on-primary); border: none; border-radius: 100px; 
             font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; 
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;
         }
-        
+        .text-btn:hover { box-shadow: 0 1px 3px rgba(0,0,0,0.3); filter: brightness(1.1); }
+        .text-btn:active { transform: scale(0.95); }
+
+        .input-pill {
+            background: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 8px; height: 32px; display: flex; align-items: center; padding: 0 8px;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .input-pill:focus-within { border: 2px solid var(--md-sys-color-primary); }
+        .input-pill input {
+            border: none; background: transparent; outline: none; text-align: center;
+            font-family: inherit; font-weight: 700; color: inherit; width: 45px; font-size: 14px;
+        }
+
         .fab-nav { 
             position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); 
             background: var(--md-sys-color-surface-container); border-radius: 100px; 
@@ -166,7 +175,7 @@
         }
         .fab-nav.hidden { display: none; }
         
-        /* Modal & Printing */
+        /* Modals & Overlays */
         .modal {
             position: fixed; inset: 0; background: var(--md-sys-color-scrim);
             display: flex; align-items: center; justify-content: center;
@@ -179,7 +188,7 @@
             color: var(--md-sys-color-on-surface);
             width: 90%; max-width: 400px;
             border-radius: 28px; padding: 24px;
-            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s;
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .modal.active .modal-card { transform: scale(1); }
 
@@ -190,61 +199,61 @@
         .print-overlay.active { display: flex; }
         .print-progress-text { margin-top: 16px; font-weight: 600; color: var(--md-sys-color-primary); font-size: 1.1rem; }
 
-        .thumb-item { cursor: pointer; border-radius: 12px; padding: 8px; margin-bottom: 8px; border: 2px solid transparent; }
+        /* Thumbnail Sidebar */
+        .thumb-item { cursor: pointer; border-radius: 12px; padding: 8px; margin-bottom: 8px; border: 2px solid transparent; transition: all 0.2s; }
         .thumb-item.active { background: var(--md-sys-color-primary-container); border-color: var(--md-sys-color-primary); }
-        
+        .thumb-item:hover:not(.active) { background: var(--md-sys-color-surface-container-high); }
+
         #empty-state {
             position: absolute; inset: 0; display: flex; flex-direction: column;
             align-items: center; justify-content: center; text-align: center;
             padding: 32px; color: var(--md-sys-color-outline);
         }
 
-        /* FIX PRINTING WHITESPACE */
+        /* PRINTING CORE FIX */
         @media print {
-            body * { visibility: hidden; }
-            #print-zone, #print-zone * { visibility: visible; }
+            body * { visibility: hidden !important; }
+            #print-zone, #print-zone * { visibility: visible !important; }
             #print-zone { 
                 position: absolute; left: 0; top: 0; width: 100%; 
-                display: block !important; /* Đảm bảo hiển thị khi in */
-                background: white;
+                display: block !important; background: white; 
             }
             .print-page { 
-                display: block; 
-                width: 100vw; 
-                height: 100vh; 
-                margin: 0; 
-                padding: 0;
-                border: none;
-                page-break-after: always; /* Luôn ngắt trang sau mỗi canvas */
-                page-break-inside: avoid;
-                image-rendering: -webkit-optimize-contrast; /* Giúp in nét hơn trên Chrome */
+                display: block !important; 
+                width: 100vw !important; 
+                height: 100vh !important; 
+                margin: 0 !important; 
+                padding: 0 !important;
+                page-break-after: always !important; 
+                page-break-inside: avoid !important;
+                image-rendering: -webkit-optimize-contrast;
             }
-            @page { margin: 0; padding: 0; }
+            @page { margin: 0; }
         }
     </style>
 </head>
-<body onclick="deselectText(event)">
+<body>
 
     <header class="app-bar">
         <div class="app-bar-section">
-            <button class="icon-btn" id="menu-btn" onclick="toggleSidebar()" disabled>
+            <button class="icon-btn ripple-btn" id="menu-btn" onclick="toggleSidebar()" disabled>
                 <span class="material-symbols-outlined">menu</span>
             </button>
             <div class="app-title" id="app-title">PDF Reader</div>
         </div>
         <div class="app-bar-section">
-            <button class="icon-btn" onclick="zoomOut()" id="zoom-out-btn" disabled><span class="material-symbols-outlined">zoom_out</span></button>
+            <button class="icon-btn ripple-btn" onclick="zoomOut()" id="zoom-out-btn" disabled><span class="material-symbols-outlined">zoom_out</span></button>
             <div class="input-pill">
                 <input type="text" id="zoom-input" value="100" onchange="handleZoomInput(this.value)">
                 <span style="font-size: 12px; font-weight: 700; opacity: 0.7; margin-right: 4px;">%</span>
             </div>
-            <button class="icon-btn" onclick="zoomIn()" id="zoom-in-btn" disabled><span class="material-symbols-outlined">zoom_in</span></button>
-            <button class="icon-btn" onclick="rotate()" id="rotate-btn" disabled><span class="material-symbols-outlined">rotate_right</span></button>
+            <button class="icon-btn ripple-btn" onclick="zoomIn()" id="zoom-in-btn" disabled><span class="material-symbols-outlined">zoom_in</span></button>
+            <button class="icon-btn ripple-btn" onclick="rotate()" id="rotate-btn" disabled><span class="material-symbols-outlined">rotate_right</span></button>
         </div>
         <div class="app-bar-section">
-            <button class="icon-btn" onclick="preparePrint()" id="print-btn" disabled><span class="material-symbols-outlined">print</span></button>
-            <button class="icon-btn" onclick="showInfo()" id="info-btn" disabled><span class="material-symbols-outlined">info</span></button>
-            <button class="text-btn" onclick="document.getElementById('file-input').click()">
+            <button class="icon-btn ripple-btn" onclick="preparePrint()" id="print-btn" disabled><span class="material-symbols-outlined">print</span></button>
+            <button class="icon-btn ripple-btn" onclick="showInfo()" id="info-btn" disabled><span class="material-symbols-outlined">info</span></button>
+            <button class="text-btn ripple-btn" onclick="document.getElementById('file-input').click()">
                 <span class="material-symbols-outlined">file_open</span>Mở tệp
             </button>
             <input type="file" id="file-input" accept="application/pdf" style="display:none">
@@ -261,26 +270,27 @@
             <div id="pages-container"></div>
             
             <div id="empty-state">
-                <span class="material-symbols-outlined" style="font-size: 64px; margin-bottom: 16px;">picture_as_pdf</span>
+                <img src="https://tuanphong3108.github.io/md3-loading/Loading_Indicator.gif" style="width: 80px; margin-bottom: 24px; filter: var(--loader-filter); opacity: 0.5;">
                 <h2>Sẵn sàng đọc PDF</h2>
-                <p>Mở tệp hoặc ném file vào đây để bắt đầu</p>
-                <p style="font-size: 12px; margin-top: 8px; opacity: 0.5;">Hỗ trợ mở file trực tiếp từ hệ thống (PWA)</p>
+                <p>Mở tệp để bắt đầu trải nghiệm Material Design 3</p>
             </div>
         </main>
 
         <nav class="fab-nav hidden" id="fab-nav">
-            <button class="icon-btn" onclick="changePage(-1)"><span class="material-symbols-outlined">arrow_upward</span></button>
+            <button class="icon-btn ripple-btn" onclick="changePage(-1)"><span class="material-symbols-outlined">arrow_upward</span></button>
             <div class="input-pill" style="height: 36px; border-radius: 100px;">
                 <input type="text" id="curr-page-input" value="1" onchange="handlePageInput(this.value)">
                 <span style="opacity: 0.5; margin: 0 4px;">/</span>
                 <span id="total-page" style="font-weight: 700; margin-right: 4px;">0</span>
             </div>
-            <button class="icon-btn" onclick="changePage(1)"><span class="material-symbols-outlined">arrow_downward</span></button>
+            <button class="icon-btn ripple-btn" onclick="changePage(1)"><span class="material-symbols-outlined">arrow_downward</span></button>
         </nav>
     </div>
 
+    <!-- Container cho các trang in -->
     <div id="print-zone" style="display:none"></div>
 
+    <!-- Overlay tiến trình in -->
     <div class="print-overlay" id="print-overlay">
         <img src="https://tuanphong3108.github.io/md3-loading/Loading_Indicator.gif" style="width: 120px; filter: var(--loader-filter);">
         <div class="print-progress-text" id="print-status">Đang chuẩn bị trang in...</div>
@@ -291,31 +301,12 @@
         <div class="modal-card" onclick="event.stopPropagation()">
             <h3 style="margin-bottom: 24px; font-weight: 600;">Thông tin file</h3>
             <div id="meta-list"></div>
-            <button class="text-btn" style="width: 100%; margin-top: 24px; justify-content: center;" onclick="closeModal()">Đóng</button>
+            <button class="text-btn ripple-btn" style="width: 100%; margin-top: 24px; justify-content: center;" onclick="closeModal()">Đóng</button>
         </div>
     </div>
 
     <script>
-        // Init SW
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('SW registered!', reg))
-                    .catch(err => console.log('SW registration failed!', err));
-            });
-        }
-
-        // PWA Launch Handler
-        if ('launchQueue' in window) {
-            window.launchQueue.setConsumer(async (launchParams) => {
-                if (launchParams.files && launchParams.files.length) {
-                    const fileHandle = launchParams.files[0];
-                    const file = await fileHandle.getFile();
-                    loadFile(file);
-                }
-            });
-        }
-
+        // Init PDF.js
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -323,6 +314,36 @@
         let isResizing = false;
         let visiblePages = new Set();
         let renderTasks = new Map();
+
+        // Ripple Effect Logic
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('.ripple-btn');
+            if (!target) return;
+            
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            const rect = target.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.width = ripple.style.height = `${size}px`;
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+            
+            target.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        });
+
+        // SHORTCUT KEY: CTRL + P
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                if (pdfDoc) {
+                    e.preventDefault(); // Chặn in mặc định
+                    preparePrint();     // Gọi hàm in "độ" của mình
+                }
+            }
+        });
 
         async function loadPDF(data, name) {
             try {
@@ -349,14 +370,7 @@
                 renderThumbnails();
             } catch (e) { 
                 alert("Lỗi tải PDF: " + e.message);
-                resetToDefaultState();
             }
-        }
-
-        function resetToDefaultState() {
-            document.title = "PDF Reader";
-            document.getElementById('app-title').textContent = "PDF Reader";
-            document.getElementById('empty-state').style.display = 'flex';
         }
 
         function renderStructure() {
@@ -459,10 +473,8 @@
             let portraitCount = 0; let landscapeCount = 0;
 
             for (let i = 1; i <= pdfDoc.numPages; i++) {
-                status.textContent = `Đang vẽ bản in: ${i} / ${pdfDoc.numPages}`;
+                status.textContent = `Chuẩn bị trang: ${i} / ${pdfDoc.numPages}`;
                 const page = await pdfDoc.getPage(i);
-                
-                // Sử dụng scale đủ cao để nét (2.0 là vừa đủ cho A4)
                 const vp = page.getViewport({scale: 2.0, rotation: rotation});
                 if (vp.width > vp.height) landscapeCount++; else portraitCount++;
                 
@@ -478,24 +490,15 @@
 
             const style = document.getElementById('print-orientation') || document.createElement('style');
             style.id = 'print-orientation';
-            // Ép kích thước @page và xóa lề trình duyệt để không bị nhảy trang trắng
-            style.innerHTML = `
-                @page { 
-                    size: ${landscapeCount > portraitCount ? 'landscape' : 'portrait'}; 
-                    margin: 0 !important;
-                }
-            `;
+            style.innerHTML = `@page { size: ${landscapeCount > portraitCount ? 'landscape' : 'portrait'}; margin: 0 !important; }`;
             if (!style.parentNode) document.head.appendChild(style);
 
             overlay.classList.remove('active');
-            
-            // Delay nhẹ để trình duyệt render canvas vào DOM trước khi gọi in
             setTimeout(() => {
                 window.print();
-                // Sau khi in xong (hoặc hủy), dọn dẹp zone
                 printZone.innerHTML = ''; 
                 printZone.style.display = 'none';
-            }, 300);
+            }, 500);
         }
 
         function updateZoomUI() {
