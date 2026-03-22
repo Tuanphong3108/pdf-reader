@@ -126,8 +126,6 @@
         }
         .pdf-page-wrapper.loading .page-loader { display: block; }
         
-        .textLayer { position: absolute; inset: 0; opacity: 1; pointer-events: auto; mix-blend-mode: multiply; }
-        .textLayer > span { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
 
         /* Ripple Effect */
         .ripple {
@@ -435,13 +433,6 @@
 
             try {
                 await renderTask.promise;
-                let tLayer = wrapper.querySelector('.textLayer');
-                if (tLayer) tLayer.remove();
-                tLayer = document.createElement('div');
-                tLayer.className = 'textLayer';
-                wrapper.appendChild(tLayer);
-                const textContent = await page.getTextContent();
-                pdfjsLib.renderTextLayer({textContent, container: tLayer, viewport: vp, textDivs: []});
 
                 wrapper.dataset.rendered = "true";
                 wrapper.dataset.renderedScale = scale;
@@ -454,8 +445,6 @@
             if (renderTasks.has(num)) { renderTasks.get(num).cancel(); renderTasks.delete(num); }
             const canvas = wrapper.querySelector('canvas');
             if (canvas) { canvas.width = 0; canvas.height = 0; canvas.remove(); }
-            const tLayer = wrapper.querySelector('.textLayer');
-            if (tLayer) tLayer.remove();
             wrapper.dataset.rendered = "false";
             wrapper.classList.add('loading');
         }
@@ -579,7 +568,6 @@
         window.onmousemove = e => { if (isResizing && e.clientX > 100 && e.clientX < 500) sidebar.style.width = e.clientX + 'px'; };
         window.onmouseup = () => { isResizing = false; handle.classList.remove('active'); };
 
-        function deselectText(e) { if (e.target.id === 'viewer-container') window.getSelection().removeAllRanges(); }
     </script>
 </body>
 </html>
