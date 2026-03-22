@@ -1,0 +1,40 @@
+{
+  "name": "MD3 Expressive PDF Reader",
+  "short_name": "PDF Reader",
+  "description": "Trình đọc PDF phong cách Material Design 3 cực mượt, hỗ trợ Tabbed giao diện.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "display_override": ["tabbed", "standalone"],
+  "background_color": "#FAF8FF",
+  "theme_color": "#5555A9",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "index.html",
+      "accept": {
+        "application/pdf": [".pdf"]
+      }
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-new"
+  },
+  "tab_strip": {
+    "new_tab_button": {
+      "url": "index.html"
+    }
+  }
+}
