@@ -105,29 +105,60 @@
             width: 90%; max-width: 400px; box-shadow: 0 15px 30px rgba(0,0,0,0.2);
         }
 
-        /* Buttons */
-        .icon-btn { width: 40px; height: 40px; border: none; background: transparent; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--md-sys-color-on-surface); position: relative; overflow: hidden; }
-        .icon-btn:hover { background: rgba(0,0,0,0.08); }
+        /* Buttons & Ripple */
+        .icon-btn { 
+            width: 40px; height: 40px; border: none; background: transparent; border-radius: 50%; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center; 
+            color: var(--md-sys-color-on-surface); position: relative; overflow: hidden; 
+        }
+        .icon-btn::after {
+            content: ""; position: absolute; inset: 0; background: currentColor; opacity: 0; transition: opacity 0.2s;
+        }
+        .icon-btn:hover::after { opacity: 0.08; }
+        .icon-btn:active::after { opacity: 0.16; }
         .icon-btn:hover .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
 
-        .text-btn { height: 40px; padding: 0 24px; background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); border: none; border-radius: 100px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .text-btn { 
+            height: 40px; padding: 0 24px; background: var(--md-sys-color-primary); 
+            color: var(--md-sys-color-on-primary); border: none; border-radius: 100px; 
+            font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; 
+            transition: box-shadow 0.2s;
+        }
+        .text-btn:hover { box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
         
-        .fab-nav { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--md-sys-color-surface-container); border-radius: 100px; display: flex; align-items: center; padding: 4px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 500; gap: 4px; }
+        .fab-nav { 
+            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); 
+            background: var(--md-sys-color-surface-container); border-radius: 100px; 
+            display: flex; align-items: center; padding: 4px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            z-index: 500; gap: 4px; 
+        }
         
-        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; backdrop-filter: blur(2px); }
         .loading-overlay.active { display: flex; }
         .global-loader { height: 60px; filter: var(--loader-filter); }
 
         .thumb-item { cursor: pointer; border-radius: 12px; padding: 8px; margin-bottom: 8px; border: 2px solid transparent; transition: 0.2s; }
         .thumb-item.active { background: var(--md-sys-color-primary-container); border-color: var(--md-sys-color-primary); }
         input[type="file"] { display: none; }
+
+        /* Print Styles */
+        @media print {
+            body, .main-container, .viewer-container { overflow: visible !important; height: auto !important; background: white !important; padding: 0 !important; }
+            .app-bar, .sidebar, .fab-nav, .icon-btn, .text-btn, .loading-overlay { display: none !important; }
+            #pages-container { width: 100% !important; }
+            .pdf-page-wrapper { 
+                box-shadow: none !important; margin: 0 !important; border: none !important; 
+                page-break-after: always; display: block !important;
+            }
+            canvas { width: 100% !important; height: auto !important; }
+        }
     </style>
 </head>
 <body onclick="deselectText(event)">
 
     <header class="app-bar">
         <div class="app-bar-section">
-            <button class="icon-btn" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></button>
+            <button class="icon-btn" onclick="toggleSidebar()" title="Thanh bên"><span class="material-symbols-outlined">menu</span></button>
             <div class="app-title" id="app-title">PDF Reader</div>
         </div>
         <div class="app-bar-section">
@@ -138,6 +169,7 @@
             </div>
             <button class="icon-btn" onclick="zoomIn()"><span class="material-symbols-outlined">zoom_in</span></button>
             <button class="icon-btn" onclick="rotate()"><span class="material-symbols-outlined">rotate_right</span></button>
+            <button class="icon-btn" onclick="preparePrint()" title="In (Ctrl + P)"><span class="material-symbols-outlined">print</span></button>
         </div>
         <div class="app-bar-section">
             <button class="icon-btn" onclick="showInfo()"><span class="material-symbols-outlined">info</span></button>
@@ -158,7 +190,7 @@
             <div id="pages-container"></div>
             <div class="loading-overlay" id="global-loader">
                 <img src="https://tuanphong3108.github.io/md3-loading/Loading_Indicator.gif" class="global-loader">
-                <p>Đang tải tài liệu...</p>
+                <p id="loader-text">Đang tải tài liệu...</p>
             </div>
         </main>
 
@@ -182,32 +214,71 @@
     </div>
 
     <script>
-        // --- PWA Service Worker & launchQueue ---
+        // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').catch(err => {
-                    console.log('SW registration failed (expected if local): ', err);
+                    console.warn('Service Worker registration skipped for local dev.');
                 });
             });
         }
 
+        // --- File Launch Handler ---
         if ('launchQueue' in window) {
             launchQueue.setConsumer(async (launchParams) => {
                 if (launchParams.files.length > 0) {
                     const fileHandle = launchParams.files[0];
                     const file = await fileHandle.getFile();
-                    const reader = new FileReader();
-                    reader.onload = evt => loadPDF(new Uint8Array(evt.target.result), file.name);
-                    reader.readAsArrayBuffer(file);
+                    loadFile(file);
                 }
             });
         }
+
+        // --- Hotkeys ---
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                e.preventDefault();
+                preparePrint();
+            }
+        });
 
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         let pdfDoc = null, scale = 1.0, rotation = 0, currPage = 1;
         let isResizing = false;
+
+        // --- Core Functions ---
+        function loadFile(file) {
+            const reader = new FileReader();
+            reader.onload = evt => loadPDF(new Uint8Array(evt.target.result), file.name);
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function preparePrint() {
+            if (!pdfDoc) return;
+            
+            const loader = document.getElementById('global-loader');
+            const loaderText = document.getElementById('loader-text');
+            loader.classList.add('active');
+            loaderText.textContent = "Đang chuẩn bị bản in...";
+
+            // Duyệt qua tất cả các trang để đảm bảo chúng đã được render
+            const wrappers = document.querySelectorAll('.pdf-page-wrapper');
+            for (let i = 0; i < wrappers.length; i++) {
+                const wrapper = wrappers[i];
+                const pageNum = parseInt(wrapper.dataset.pageNumber);
+                
+                // Update text cho người dùng đỡ sốt ruột
+                loaderText.textContent = `Đang chuẩn bị trang ${pageNum}/${pdfDoc.numPages}...`;
+                
+                // Render trang nếu nó chưa được render ở scale hiện tại
+                await renderPage(pageNum, wrapper);
+            }
+
+            loader.classList.remove('active');
+            window.print();
+        }
 
         // --- Utils ---
         function isNumberKey(evt) {
@@ -253,6 +324,7 @@
 
         // --- PDF Logic ---
         async function loadPDF(data, name) {
+            document.getElementById('loader-text').textContent = "Đang tải tài liệu...";
             document.getElementById('global-loader').classList.add('active');
             try {
                 pdfDoc = await pdfjsLib.getDocument({data}).promise;
@@ -298,7 +370,7 @@
         }, { threshold: 0.1 });
 
         async function renderPage(num, wrapper) {
-            if (wrapper.dataset.rendered === "true" && wrapper.dataset.scale == scale) return;
+            if (wrapper.dataset.rendered === "true" && wrapper.dataset.scale == scale && wrapper.dataset.rotation == rotation) return;
 
             const page = await pdfDoc.getPage(num);
             const vp = page.getViewport({scale, rotation});
@@ -331,6 +403,7 @@
 
             wrapper.dataset.rendered = "true";
             wrapper.dataset.scale = scale;
+            wrapper.dataset.rotation = rotation;
         }
 
         function adjustPageSpacing() {
@@ -366,7 +439,7 @@
             adjustPageSpacing();
             document.querySelectorAll('.pdf-page-wrapper').forEach(w => {
                 w.dataset.rendered = "false";
-                w.style.transform = `scale(${scale / w.dataset.scale || 1})`;
+                w.style.transform = `scale(${scale / (w.dataset.scale || scale)})`;
             });
             const visible = document.querySelectorAll('.pdf-page-wrapper');
             visible.forEach(w => {
@@ -440,11 +513,7 @@
 
         document.getElementById('file-input').addEventListener('change', e => {
             const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = evt => loadPDF(new Uint8Array(evt.target.result), file.name);
-                reader.readAsArrayBuffer(file);
-            }
+            if (file) loadFile(file);
         });
     </script>
 </body>
