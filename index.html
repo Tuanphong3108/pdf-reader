@@ -1812,16 +1812,30 @@
             if (sigs.length) inner.append(el('div', { class: 'panel-hint', text: activeSig >= 0 ? 'Nhấp vào trang để đặt chữ ký.' : 'Chọn một chữ ký, rồi nhấp vào trang để đặt.' }));
         }
 
-        // ----- Hộp thoại vẽ chữ ký -----
+       // ----- Hộp thoại vẽ chữ ký -----
         const sigCanvas = $('sig-canvas');
         let sigStrokes = [], sigCur = null;
         function sigInk() { return getComputedStyle(document.documentElement).getPropertyValue('--md-sys-color-on-surface').trim() || '#000'; }
+        
         function sizeSigCanvas() {
             const r = sigCanvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-            sigCanvas.width = Math.max(1, Math.floor(r.width * dpr));
-            sigCanvas.height = Math.max(1, Math.floor(r.height * dpr));
+            if (r.width === 0 || r.height === 0) return;
+            sigCanvas.width = Math.max(1, Math.round(r.width * dpr));
+            sigCanvas.height = Math.max(1, Math.round(r.height * dpr));
             redrawSig();
         }
+
+        function getSigPos(e) {
+            const r = sigCanvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const scaleX = (sigCanvas.width / (r.width || 1)) / dpr;
+            const scaleY = (sigCanvas.height / (r.height || 1)) / dpr;
+            return [
+                (e.clientX - r.left) * scaleX,
+                (e.clientY - r.top) * scaleY
+            ];
+        }
+
         function strokePath(ctx, pts) {
             ctx.beginPath();
             if (pts.length === 1) { ctx.arc(pts[0][0], pts[0][1], ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fill(); return; }
@@ -1830,6 +1844,7 @@
             ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
             ctx.stroke();
         }
+
         function redrawSig() {
             const ctx = sigCanvas.getContext('2d'), dpr = window.devicePixelRatio || 1;
             ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1840,54 +1855,39 @@
             sigStrokes.forEach(s => strokePath(ctx, s));
             $('sig-hint').style.visibility = sigStrokes.length ? 'hidden' : 'visible';
         }
+
         function openSigDialog() {
             sigStrokes = []; sigCur = null;
             $('sig-modal').classList.add('active');
-            requestAnimationFrame(sizeSigCanvas);
+            // Cập nhật ngay và cập nhật lại sau khi transition CSS (300ms) kết thúc
+            sizeSigCanvas();
+            setTimeout(sizeSigCanvas, 320);
         }
         function closeSigDialog() { $('sig-modal').classList.remove('active'); }
         function clearSigPad() { sigStrokes = []; redrawSig(); }
         $('sig-modal').addEventListener('pointerdown', e => { if (e.target === $('sig-modal')) closeSigDialog(); });
+
         sigCanvas.addEventListener('pointerdown', e => {
             e.preventDefault();
             sigCanvas.setPointerCapture(e.pointerId);
-            const r = sigCanvas.getBoundingClientRect();
-            sigCur = [[e.clientX - r.left, e.clientY - r.top]];
+            sigCur = [getSigPos(e)];
             sigStrokes.push(sigCur);
             redrawSig();
         });
+
         sigCanvas.addEventListener('pointermove', e => {
             if (!sigCur) return;
-            const r = sigCanvas.getBoundingClientRect();
-            for (const c of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) sigCur.push([c.clientX - r.left, c.clientY - r.top]);
+            const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+            for (const c of events) {
+                sigCur.push(getSigPos(c));
+            }
             redrawSig();
         });
+
         const sigEnd = () => { sigCur = null; };
         sigCanvas.addEventListener('pointerup', sigEnd);
         sigCanvas.addEventListener('pointercancel', sigEnd);
         window.addEventListener('resize', () => { if ($('sig-modal').classList.contains('active')) sizeSigCanvas(); });
-
-        function finishSigDialog() {
-            if (!sigStrokes.length) { closeSigDialog(); return; }
-            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-            sigStrokes.forEach(s => s.forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }));
-            const m = 6, K = 2;
-            const w = Math.max(8, x1 - x0 + 2 * m), h = Math.max(8, y1 - y0 + 2 * m);
-            const c = document.createElement('canvas');
-            c.width = Math.ceil(w * K); c.height = Math.ceil(h * K);
-            const ctx = c.getContext('2d');
-            ctx.setTransform(K, 0, 0, K, -(x0 - m) * K, -(y0 - m) * K);
-            ctx.strokeStyle = ctx.fillStyle = '#111111';
-            ctx.lineWidth = 3.2; ctx.lineCap = ctx.lineJoin = 'round';
-            sigStrokes.forEach(s => strokePath(ctx, s));
-            sigs.unshift({ src: c.toDataURL('image/png'), w: w, h: h });
-            sigs = sigs.slice(0, 6);
-            activeSig = 0;
-            saveSigs();
-            closeSigDialog();
-            renderPanel();
-        }
-
         // ====================================================================
         //  Thông tin tệp
         // ====================================================================
