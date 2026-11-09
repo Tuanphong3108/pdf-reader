@@ -1,5 +1,5 @@
 // Đổi số phiên bản mỗi khi muốn ép máy người dùng xoá cache cũ
-const CACHE_NAME = 'pdf-reader-v7';
+const CACHE_NAME = 'pdf-reader-v8';
 
 // File của app: bắt buộc phải có
 const CORE_ASSETS = [
@@ -7,7 +7,8 @@ const CORE_ASSETS = [
     'index.html',
     'manifest.json',
     'icon.png',
-    'error.png'
+    'error.png',
+    'error-dark.png'
 ];
 
 // File từ CDN: cố gắng cache sẵn, lỗi cái nào bỏ qua cái đó (không làm hỏng việc cài SW)
