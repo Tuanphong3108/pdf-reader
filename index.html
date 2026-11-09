@@ -761,8 +761,8 @@
                 if (token !== docToken) return;
                 const b = page1.getViewport({ scale: 1, rotation: page1.rotate });
                 pageSizes[1] = { w: b.width, h: b.height };
-                baseScale = Math.max(viewer.clientWidth - 80, 200) / b.width;
-                scale = baseScale;
+baseScale = Math.max(viewer.clientWidth - 80, 200) / b.width;
+scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
 
                 $('empty-state').style.display = 'none';
                 sidebar.classList.remove('hidden-state');
