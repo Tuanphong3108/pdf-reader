@@ -35,6 +35,7 @@
             --md-sys-color-surface-variant: #E4E1EC;
             --md-sys-color-outline-variant: #C8C5D0;
             --md-sys-color-scrim: rgba(0, 0, 0, 0.4);
+            --md-sys-color-error: #BA1A1A;
             --loader-filter: brightness(0) invert(33%) sepia(51%) saturate(674%) hue-rotate(203deg) brightness(96%) contrast(89%);
             /* Trang PDF luôn nền trắng nên loader trên trang luôn dùng màu của light theme */
             --page-loader-filter: brightness(0) invert(33%) sepia(51%) saturate(674%) hue-rotate(203deg) brightness(96%) contrast(89%);
@@ -56,28 +57,40 @@
                 --md-sys-color-outline: #918F9A;
                 --md-sys-color-surface-variant: #46464F;
                 --md-sys-color-outline-variant: #46464F;
+                --md-sys-color-error: #FFB4AB;
                 --loader-filter: brightness(0) invert(80%) sepia(10%) saturate(2000%) hue-rotate(210deg) brightness(100%) contrast(100%);
             }
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        [hidden] { display: none !important; }
         body {
             font-family: 'Google Sans Flex', sans-serif;
             background-color: var(--md-sys-color-background);
             color: var(--md-sys-color-on-background);
-            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+            height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
+        button { font-family: inherit; color: inherit; }
 
-        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); user-select: none; -webkit-user-select: none; }
+        .material-symbols-outlined.small { font-size: 20px; margin-left: -6px; }
 
-        /* App Bar */
-        .app-bar { height: 64px; background-color: var(--md-sys-color-surface-container); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 1000; border-bottom: 1px solid var(--md-sys-color-outline-variant); transition: background-color 0.3s ease; }
-        .app-bar-section { display: flex; align-items: center; gap: 4px; }
-        .app-title { font-size: 1.1rem; font-weight: 500; margin-left: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* ===== App bar ===== */
+        .app-bar {
+            height: 64px; background-color: var(--md-sys-color-surface-container);
+            display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px;
+            padding: 0 16px; z-index: 1000; border-bottom: 1px solid var(--md-sys-color-outline-variant);
+            transition: background-color 0.3s ease;
+        }
+        .app-bar-left { min-width: 0; }
+        .app-title { font-size: 1.05rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .app-bar-center { display: flex; align-items: center; gap: 4px; justify-content: center; }
+        .app-bar-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+        .tb-sep { width: 1px; height: 28px; background: var(--md-sys-color-outline-variant); margin: 0 8px; flex-shrink: 0; }
 
-        /* Layout */
-        .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
+        /* ===== Layout ===== */
+        .main-container { display: flex; flex: 1; overflow: hidden; position: relative; min-height: 0; }
 
         .sidebar {
             width: 260px; min-width: 0; max-width: 500px;
@@ -86,13 +99,14 @@
             position: relative;
             transition: width 0.4s cubic-bezier(0.3, 0, 0, 1), transform 0.4s cubic-bezier(0.3, 0, 0, 1), opacity 0.3s, background-color 0.3s;
             border-right: 1px solid var(--md-sys-color-outline-variant);
-            overflow: hidden;
+            overflow: hidden; flex-shrink: 0;
         }
-        /* Tắt animation khi đang kéo resize để không bị lag */
         .sidebar.resizing { transition: none; }
         .sidebar.collapsed { width: 0 !important; transform: translateX(-100%); opacity: 0; pointer-events: none; }
         .sidebar.hidden-state { display: none; }
-        .sidebar-content { flex: 1; overflow-y: auto; padding: 16px; width: 100%; position: relative; }
+        .sidebar-head { height: 52px; display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; border-bottom: 1px solid var(--md-sys-color-outline-variant); flex-shrink: 0; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 12px; width: 100%; position: relative; }
+        .sidebar-expand { position: absolute; left: 8px; top: 8px; z-index: 600; background: var(--md-sys-color-surface-container-high); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
 
         .resize-handle {
             width: 6px; height: 100%; cursor: col-resize;
@@ -102,136 +116,227 @@
         .resize-handle:hover, .resize-handle.active { background: var(--md-sys-color-primary); }
 
         .viewer-container {
-            flex: 1;
+            flex: 1; min-width: 0;
             background-color: var(--md-sys-color-surface-variant);
-            overflow: auto;
-            display: block;
-            padding: 40px 16px;
-            scroll-behavior: smooth;
-            position: relative;
+            overflow: auto; display: block; padding: 40px 16px;
+            scroll-behavior: smooth; position: relative;
             transition: background-color 0.3s ease;
         }
-        /* width:max-content + min-width:100% để trang rộng hơn khung vẫn cuộn ngang được (không bị cắt bên trái) */
+        /* width:max-content + min-width:100% để trang rộng hơn khung vẫn cuộn ngang được */
         #pages-container { display: flex; flex-direction: column; width: max-content; min-width: 100%; }
 
-        /* Page wrappers */
+        /* ===== Trang PDF ===== */
         .pdf-page-wrapper {
             position: relative;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 4px; background: white;
-            overflow: hidden;
-            margin: 0 auto 24px;
-            flex-shrink: 0;
+            overflow: hidden; margin: 0 auto 24px; flex-shrink: 0;
         }
         .pdf-page-wrapper > canvas { position: absolute; left: 0; top: 0; display: block; }
-
         .pdf-page-wrapper.loading::after {
-            content: '';
-            position: absolute; inset: 0;
+            content: ''; position: absolute; inset: 0;
             background: url('https://tuanphong3108.github.io/md3-loading/Loading_Indicator.gif') center / 80px no-repeat;
-            filter: var(--page-loader-filter);
-            pointer-events: none;
-            z-index: 5;
+            filter: var(--page-loader-filter); pointer-events: none; z-index: 5;
         }
 
         /* ===== Text layer (chọn / copy chữ) — rút gọn từ pdf_viewer.css của pdf.js 3.11.174 (Apache-2.0) ===== */
         .textLayer {
-            position: absolute;
-            text-align: initial;
-            inset: 0;
-            overflow: hidden;
-            opacity: 0.25;
-            line-height: 1;
-            -webkit-text-size-adjust: none;
-               -moz-text-size-adjust: none;
-                    text-size-adjust: none;
-            forced-color-adjust: none;
-            transform-origin: 0 0;
-            z-index: 2;
+            position: absolute; text-align: initial; inset: 0; overflow: hidden; opacity: 0.25; line-height: 1;
+            -webkit-text-size-adjust: none; -moz-text-size-adjust: none; text-size-adjust: none;
+            forced-color-adjust: none; transform-origin: 0 0; z-index: 2;
         }
-        .textLayer :is(span, br) {
-            color: transparent;
-            position: absolute;
-            white-space: pre;
-            cursor: text;
-            transform-origin: 0% 0%;
-        }
+        .textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
         .textLayer span.markedContent { top: 0; height: 0; }
         .textLayer ::-moz-selection { background: var(--md-sys-color-primary); }
         .textLayer ::selection { background: var(--md-sys-color-primary); }
         .textLayer br::-moz-selection { background: transparent; }
         .textLayer br::selection { background: transparent; }
-        .textLayer .endOfContent {
-            display: block;
-            position: absolute;
-            inset: 100% 0 0;
-            z-index: -1;
-            cursor: default;
-            -webkit-user-select: none;
-               -moz-user-select: none;
-                    user-select: none;
-        }
+        .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; -webkit-user-select: none; -moz-user-select: none; user-select: none; }
         .textLayer .endOfContent.active { top: 0; }
-        /* Trang có xoay: layer được vẽ theo khung chưa xoay rồi xoay bằng CSS */
         .textLayer[data-main-rotation="90"]  { transform: rotate(90deg) translateY(-100%); }
         .textLayer[data-main-rotation="180"] { transform: rotate(180deg) translate(-100%, -100%); }
         .textLayer[data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
 
-        /* Inputs & Buttons */
+        /* ===== Lớp chú thích (chữ, nét vẽ, chữ ký) — toạ độ theo đơn vị trang PDF, được scale/xoay bằng CSS transform ===== */
+        .annLayer { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 3; pointer-events: none; user-select: none; -webkit-user-select: none; }
+        .annLayer svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+        #pages-container[data-tool="text"] .annLayer,
+        #pages-container[data-tool="draw"] .annLayer,
+        #pages-container[data-tool="sign"] .annLayer { pointer-events: auto; }
+        #pages-container[data-tool="text"] .annLayer { cursor: text; }
+        #pages-container[data-tool="draw"] .annLayer { cursor: crosshair; touch-action: none; }
+        #pages-container[data-tool="sign"] .annLayer { cursor: copy; }
+
+        .annText, .annSign { position: absolute; pointer-events: none; }
+        #pages-container[data-tool="select"] .annText,
+        #pages-container[data-tool="select"] .annSign { pointer-events: auto; cursor: move; }
+        #pages-container[data-tool="text"] .annText { pointer-events: auto; cursor: text; }
+        .annInk .hit { pointer-events: none; }
+        #pages-container[data-tool="select"] .annInk .hit { pointer-events: stroke; cursor: move; }
+        .annSign img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+
+        .annBody, .annMeasure {
+            padding: 4px; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal;
+            line-height: 1.25; box-sizing: border-box; min-height: 1.25em; outline: none; font-kerning: normal;
+        }
+        .annBody[contenteditable]:not([contenteditable="false"]) { user-select: text; -webkit-user-select: text; cursor: text; }
+        .annMeasure { position: fixed; left: -99999px; top: 0; visibility: hidden; pointer-events: none; }
+        .annMeasure .probe { display: inline-block; width: 0; height: 0; }
+
+        .annItem.selected { outline: calc(1.5px * var(--inv, 1)) dashed var(--md-sys-color-primary); outline-offset: calc(2px * var(--inv, 1)); }
+        .annHandle {
+            display: none; position: absolute; right: calc(-8px * var(--inv, 1)); bottom: calc(-8px * var(--inv, 1));
+            width: calc(14px * var(--inv, 1)); height: calc(14px * var(--inv, 1)); border-radius: 50%;
+            background: var(--md-sys-color-primary); border: calc(2px * var(--inv, 1)) solid #fff; cursor: nwse-resize; touch-action: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
+        .annItem.selected .annHandle { display: block; }
+        .annInk .selbox { fill: none; stroke: var(--md-sys-color-primary); stroke-width: calc(1.5px * var(--inv, 1)); stroke-dasharray: calc(5px * var(--inv, 1)) calc(4px * var(--inv, 1)); pointer-events: none; }
+
+        /* ===== Input & nút ===== */
         .input-pill {
-            background: var(--md-sys-color-surface);
-            border: 1px solid var(--md-sys-color-outline);
+            background: var(--md-sys-color-surface); border: 1px solid var(--md-sys-color-outline);
             border-radius: 8px; height: 32px; display: flex; align-items: center; padding: 0 8px;
             transition: background-color 0.3s, border-color 0.3s;
         }
-        .input-pill:focus-within { border: 2px solid var(--md-sys-color-primary); }
+        .input-pill:focus-within { border: 2px solid var(--md-sys-color-primary); padding: 0 7px; }
         .input-pill input {
             border: none; background: transparent; outline: none; text-align: center;
-            font-family: inherit; font-weight: 700; color: inherit; width: 45px; font-size: 14px;
+            font-family: inherit; font-weight: 700; color: inherit; width: 40px; font-size: 14px;
         }
+        .input-pill input:disabled { opacity: 0.4; }
 
         .icon-btn {
             width: 40px; height: 40px; border: none; background: transparent; border-radius: 50%;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            color: var(--md-sys-color-on-surface); position: relative; overflow: hidden;
+            cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+            color: var(--md-sys-color-on-surface); position: relative; overflow: hidden; flex-shrink: 0;
         }
         .icon-btn:disabled { opacity: 0.3; cursor: default; }
-        .icon-btn:not(:disabled):hover { background-color: rgba(150,150,150,0.1); }
+        .icon-btn:not(:disabled):hover { background-color: rgba(150,150,150,0.14); }
         .icon-btn:not(:disabled):hover .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+        .icon-btn.tool { width: 48px; border-radius: 12px; }
+        .icon-btn.tool.active { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+        .icon-btn.tool.active .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+        .icon-btn.zoom-btn { width: 56px; border-radius: 20px; }
 
         .text-btn {
             height: 40px; padding: 0 24px; background: var(--md-sys-color-primary);
             color: var(--md-sys-color-on-primary); border: none; border-radius: 100px;
-            font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
-            transition: all 0.2s;
+            font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
         }
+        .text-btn.tonal { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
 
-        .fab-nav {
-            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
-            background: var(--md-sys-color-surface-container); border-radius: 100px;
-            display: flex; align-items: center; padding: 4px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 500; gap: 4px; border: 1px solid var(--md-sys-color-outline-variant);
+        .split-btn { display: flex; align-items: stretch; height: 40px; border-radius: 100px; overflow: hidden; background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+        .split-btn button { border: none; background: transparent; color: inherit; cursor: pointer; font-weight: 600; display: flex; align-items: center; }
+        .split-btn button:hover { background: rgba(255,255,255,0.12); }
+        .split-btn .save-main { padding: 0 18px 0 20px; }
+        .split-btn .save-arrow { padding: 0 8px 0 6px; border-left: 1px solid rgba(255,255,255,0.35); }
+
+        /* ===== Popup menu ===== */
+        .menu {
+            position: fixed; z-index: 6000; min-width: 200px; max-width: min(340px, 94vw); max-height: 70vh; overflow-y: auto;
+            background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface);
+            border-radius: 16px; padding: 8px 0; box-shadow: 0 6px 24px rgba(0,0,0,0.3); border: 1px solid var(--md-sys-color-outline-variant);
+            animation: menu-in 0.14s ease-out;
         }
-        .fab-nav.hidden { display: none; }
+        @keyframes menu-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+        .menu-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 40px; padding: 0 16px; border: none; background: transparent; cursor: pointer; font-size: 14px; text-align: left; }
+        .menu-item:hover:not(:disabled) { background: rgba(150,150,150,0.16); }
+        .menu-item:disabled { opacity: 0.4; cursor: default; }
+        .menu-item .material-symbols-outlined { font-size: 20px; opacity: 0.8; }
+        .menu-item .menu-kbd { margin-left: auto; opacity: 0.55; font-size: 12px; padding-left: 16px; }
+        .menu-item.selected { color: var(--md-sys-color-primary); font-weight: 600; }
+        .menu-div { height: 1px; background: var(--md-sys-color-outline-variant); margin: 6px 0; }
 
-        /* Modal */
+        /* ===== Panel công cụ bên phải ===== */
+        .tool-panel {
+            flex: 0 0 auto; width: 0; overflow: hidden; background: var(--md-sys-color-surface);
+            border-left: 0 solid var(--md-sys-color-outline-variant);
+            transition: width 0.3s cubic-bezier(0.3, 0, 0, 1);
+        }
+        .tool-panel.open { width: 300px; border-left-width: 1px; }
+        .tool-panel-inner { width: 300px; height: 100%; overflow-y: auto; padding: 20px 20px 28px; }
+        .panel-label { font-size: 13px; opacity: 0.75; margin: 22px 0 10px; }
+        .panel-label:first-child { margin-top: 0; }
+        .dd-btn {
+            width: 100%; height: 44px; border-radius: 10px; border: none; cursor: pointer; text-align: left; padding: 0 14px;
+            background: var(--md-sys-color-surface-container-high); display: flex; align-items: center; justify-content: space-between; font-size: 14px;
+        }
+        .dd-btn + .dd-btn { margin-top: 12px; }
+        .seg { display: flex; gap: 8px; }
+        .seg-btn {
+            flex: 1; height: 48px; border: none; border-radius: 12px; cursor: pointer; background: transparent;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .seg-btn:hover { background: rgba(150,150,150,0.14); }
+        .seg-btn.active { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+        .seg-btn.active .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+        .mode-row { display: flex; gap: 8px; }
+        .mode-row .seg-btn { height: 64px; background: var(--md-sys-color-surface-container); }
+        .mode-row .seg-btn.active { background: var(--md-sys-color-primary-container); }
+        .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px 8px; justify-items: center; }
+        .swatch { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(128,128,128,0.45); cursor: pointer; padding: 0; }
+        .swatch.active { outline: 3px solid var(--md-sys-color-primary); outline-offset: 2px; }
+        .tabs { display: flex; background: var(--md-sys-color-surface-container-high); border-radius: 100px; padding: 3px; margin-bottom: 16px; }
+        .tab { flex: 1; height: 36px; border: none; background: transparent; border-radius: 100px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        .tab.active { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+        .custom-color { display: flex; gap: 12px; align-items: center; }
+        .custom-color input[type="color"] { width: 64px; height: 44px; border: none; background: transparent; padding: 0; cursor: pointer; }
+        .custom-color code { font-size: 14px; opacity: 0.8; }
+        .size-row { display: flex; justify-content: space-between; }
+        .size-btn { width: 44px; height: 44px; border: none; border-radius: 12px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .size-btn:hover { background: rgba(150,150,150,0.14); }
+        .size-btn.active { background: var(--md-sys-color-primary-container); }
+        .size-btn svg line { stroke: currentColor; stroke-linecap: round; }
+        .panel-hint { font-size: 13px; opacity: 0.7; line-height: 1.5; margin-top: 14px; }
+        .sig-empty { text-align: center; font-size: 14px; opacity: 0.85; margin-bottom: 16px; }
+        .sig-card-item {
+            display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 10px; border-radius: 16px; margin-bottom: 10px; cursor: pointer;
+            background: var(--md-sys-color-surface-container-high); border: 2px solid transparent;
+        }
+        .sig-card-item.active { border-color: var(--md-sys-color-primary); }
+        .sig-card-item .sig-thumb { flex: 1; height: 64px; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 4px; min-width: 0; }
+        .sig-card-item .sig-thumb img { max-width: 100%; max-height: 100%; }
+
+        /* ===== Bảng thông tin ===== */
+        .info-sheet {
+            position: absolute; right: 12px; top: 12px; width: 360px; max-width: calc(100% - 24px); max-height: calc(100% - 24px); overflow-y: auto;
+            background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35); z-index: 900; padding: 20px 24px 28px; animation: sheet-in 0.22s cubic-bezier(0.3, 0, 0, 1);
+        }
+        @keyframes sheet-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+        .info-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+        .info-head h3 { font-weight: 500; font-size: 1.35rem; }
+        .info-row { display: flex; gap: 20px; align-items: flex-start; margin: 22px 0; }
+        .info-row > .material-symbols-outlined { opacity: 0.9; margin-top: 2px; }
+        .info-title { font-size: 15px; }
+        .info-sub { font-size: 15px; opacity: 0.8; margin-top: 2px; }
+        .info-divider { height: 1px; background: var(--md-sys-color-outline-variant); margin: 8px 0 18px; }
+        .info-kv { display: grid; grid-template-columns: 42% 1fr; gap: 14px 12px; font-size: 14px; }
+        .info-kv .k { opacity: 0.85; }
+        .info-kv .v { overflow-wrap: anywhere; }
+
+        /* ===== Modal ===== */
         .modal {
             position: fixed; inset: 0; background: var(--md-sys-color-scrim);
             display: flex; align-items: center; justify-content: center;
-            z-index: 5000; opacity: 0; pointer-events: none;
-            transition: opacity 0.3s; backdrop-filter: blur(4px);
+            z-index: 5000; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(4px);
         }
         .modal.active { opacity: 1; pointer-events: auto; }
         .modal-card {
-            background: var(--md-sys-color-surface-container-high);
-            color: var(--md-sys-color-on-surface);
-            width: 90%; max-width: 400px;
-            border-radius: 28px; padding: 24px;
+            background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface);
+            width: 92%; max-width: 720px; border-radius: 28px; padding: 24px;
             transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s;
         }
         .modal.active .modal-card { transform: scale(1); }
-        .meta-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--md-sys-color-outline-variant); }
-        .meta-row .meta-label { opacity: 0.6; flex-shrink: 0; }
-        .meta-row .meta-value { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+        .modal-head { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 20px; }
+        .modal-head h3 { font-weight: 500; font-size: 1.4rem; }
+        .modal-head .icon-btn { position: absolute; right: -8px; top: -8px; }
+        .sig-pad { position: relative; height: min(300px, 42vh); border-radius: 16px; background: var(--md-sys-color-surface); overflow: hidden; }
+        .sig-pad canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+        .sig-hint { position: absolute; left: 0; right: 0; top: 36%; text-align: center; font-size: 14px; opacity: 0.7; pointer-events: none; }
+        .sig-line { position: absolute; left: 8%; right: 8%; bottom: 22%; border-bottom: 1px dashed var(--md-sys-color-primary); pointer-events: none; }
+        .sig-line .material-symbols-outlined { position: absolute; left: 0; bottom: 2px; font-size: 20px; color: var(--md-sys-color-primary); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
         .print-overlay {
             position: fixed; inset: 0; background: var(--md-sys-color-background);
@@ -240,93 +345,129 @@
         .print-overlay.active { display: flex; }
         .print-progress-text { margin-top: 16px; font-weight: 600; color: var(--md-sys-color-primary); font-size: 1.1rem; }
 
-        /* Thumbnails */
-        .thumb-item { cursor: pointer; border-radius: 12px; padding: 8px; margin-bottom: 8px; border: 2px solid transparent; }
+        /* ===== Thumbnail ===== */
+        .thumb-item { display: flex; gap: 6px; cursor: pointer; border-radius: 16px; padding: 10px 8px; margin-bottom: 8px; border: 2px solid transparent; }
         .thumb-item.active { background: var(--md-sys-color-primary-container); border-color: var(--md-sys-color-primary); }
-        .thumb-item canvas { display: block; width: 100%; height: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
-        .thumb-label { text-align: center; font-size: 12px; margin-top: 4px; }
+        .thumb-side { width: 34px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 13px; padding-top: 2px; }
+        .thumb-side .icon-btn { width: 32px; height: 32px; }
+        .thumb-side .icon-btn .material-symbols-outlined { font-size: 20px; }
+        .thumb-img { flex: 1; min-width: 0; }
+        .thumb-img canvas { display: block; width: 100%; height: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
 
         #empty-state {
             position: absolute; inset: 0; display: flex; flex-direction: column;
             align-items: center; justify-content: center; text-align: center;
-            padding: 32px; color: var(--md-sys-color-outline);
+            padding: 32px; color: var(--md-sys-color-outline); gap: 6px;
+        }
+        #empty-state .text-btn { margin-top: 18px; }
+
+        .toast {
+            position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+            background: var(--md-sys-color-on-surface); color: var(--md-sys-color-surface); padding: 12px 20px; border-radius: 12px;
+            z-index: 9000; font-size: 14px; max-width: 90vw; transition: opacity 0.25s, transform 0.25s;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        /* ===== Màn hình nhỏ ===== */
+        @media (max-width: 1100px) {
+            .app-bar { grid-template-columns: minmax(0, 1fr) auto; padding: 0 8px; }
+            .app-bar-left { display: none; }
+            .app-bar-center { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+            .app-bar-center::-webkit-scrollbar { display: none; }
+        }
+        @media (max-width: 800px) {
+            .tool-panel { position: absolute; right: 0; top: 0; bottom: 0; z-index: 700; box-shadow: -4px 0 16px rgba(0,0,0,0.25); }
+            .tool-panel.open { width: min(300px, 86vw); }
+            .tool-panel-inner { width: min(300px, 86vw); }
+            .text-btn { padding: 0 16px; }
         }
 
-        /* Vùng in: ẩn trên màn hình, chỉ hiện khi in */
+        /* ===== In ===== */
         #print-zone { display: none; }
-
         @media print {
             html, body { height: auto !important; overflow: visible !important; display: block !important; background: #fff !important; }
             body > *:not(#print-zone) { display: none !important; }
             #print-zone { display: block !important; position: static; background: #fff; }
             .print-page {
-                width: 100vw; height: 100vh;
-                display: flex; align-items: center; justify-content: center;
-                overflow: hidden;
-                break-after: page; page-break-after: always;
-                break-inside: avoid; page-break-inside: avoid;
+                width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;
+                break-after: page; page-break-after: always; break-inside: avoid; page-break-inside: avoid;
             }
             .print-page:last-child { break-after: auto; page-break-after: auto; }
-            /* Giữ đúng tỉ lệ trang, nằm gọn trong khổ giấy */
             .print-page img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
             @page { margin: 0; }
         }
     </style>
+    <style id="font-faces"></style>
 </head>
 <body>
 
-    <header class="app-bar">
-        <div class="app-bar-section">
-            <button class="icon-btn" id="menu-btn" onclick="toggleSidebar()" disabled aria-label="Hiện/ẩn thumbnail" title="Thumbnail">
-                <span class="material-symbols-outlined">menu</span>
-            </button>
-            <div class="app-title" id="app-title">PDF Reader</div>
-        </div>
-        <div class="app-bar-section">
-            <button class="icon-btn" onclick="zoomOut()" id="zoom-out-btn" disabled aria-label="Thu nhỏ" title="Thu nhỏ"><span class="material-symbols-outlined">zoom_out</span></button>
-            <div class="input-pill">
-                <input type="text" id="zoom-input" value="100" onchange="handleZoomInput(this.value)" aria-label="Mức zoom (%)">
-                <span style="font-size: 12px; font-weight: 700; opacity: 0.7; margin-right: 4px;">%</span>
+    <header class="app-bar" id="app-bar">
+        <div class="app-bar-left"><div class="app-title" id="app-title">PDF Reader</div></div>
+
+        <div class="app-bar-center" id="toolbar">
+            <button class="icon-btn" id="share-btn" onclick="shareFile()" disabled aria-label="Chia sẻ" title="Chia sẻ"><span class="material-symbols-outlined">share</span></button>
+            <button class="icon-btn zoom-btn" id="zoom-btn" onclick="openZoomMenu(this)" disabled aria-label="Thu phóng" title="Thu phóng"><span class="material-symbols-outlined">zoom_in</span><span class="material-symbols-outlined small">arrow_drop_down</span></button>
+            <button class="icon-btn" id="print-btn" onclick="preparePrint()" disabled aria-label="In" title="In (Ctrl+P)"><span class="material-symbols-outlined">print</span></button>
+            <div class="tb-sep"></div>
+            <div class="input-pill" style="border-radius: 10px;">
+                <input type="text" id="curr-page-input" value="1" onchange="handlePageInput(this.value)" aria-label="Trang hiện tại" disabled>
+                <span style="opacity: 0.5; margin: 0 4px;">/</span>
+                <span id="total-page" style="font-weight: 700; margin-right: 4px;">0</span>
             </div>
-            <button class="icon-btn" onclick="zoomIn()" id="zoom-in-btn" disabled aria-label="Phóng to" title="Phóng to"><span class="material-symbols-outlined">zoom_in</span></button>
-            <button class="icon-btn" onclick="rotate()" id="rotate-btn" disabled aria-label="Xoay trang" title="Xoay"><span class="material-symbols-outlined">rotate_right</span></button>
+            <div class="tb-sep"></div>
+            <button class="icon-btn tool" data-toolbtn="text" onclick="setTool('text')" disabled aria-label="Thêm văn bản" title="Văn bản"><span class="material-symbols-outlined">text_fields</span></button>
+            <button class="icon-btn tool" data-toolbtn="draw" onclick="setTool('draw')" disabled aria-label="Vẽ" title="Vẽ và tô sáng"><span class="material-symbols-outlined">draw</span></button>
+            <button class="icon-btn tool" data-toolbtn="sign" onclick="setTool('sign')" disabled aria-label="Chữ ký" title="Chữ ký"><span class="material-symbols-outlined">signature</span></button>
+            <button class="icon-btn tool" data-toolbtn="select" onclick="setTool('select')" disabled aria-label="Chọn" title="Chọn"><span class="material-symbols-outlined">select</span></button>
+            <div class="tb-sep"></div>
+            <button class="icon-btn" id="undo-btn" onclick="undo()" disabled aria-label="Hoàn tác" title="Hoàn tác (Ctrl+Z)"><span class="material-symbols-outlined">undo</span></button>
+            <button class="icon-btn" id="redo-btn" onclick="redo()" disabled aria-label="Làm lại" title="Làm lại (Ctrl+Y)"><span class="material-symbols-outlined">redo</span></button>
+            <button class="icon-btn" id="delete-btn" onclick="deleteSelected()" hidden aria-label="Xoá mục đã chọn" title="Xoá mục đã chọn (Delete)"><span class="material-symbols-outlined">delete</span></button>
         </div>
-        <div class="app-bar-section">
-            <button class="icon-btn" onclick="preparePrint()" id="print-btn" disabled aria-label="In" title="In (Ctrl+P)"><span class="material-symbols-outlined">print</span></button>
-            <button class="icon-btn" onclick="showInfo()" id="info-btn" disabled aria-label="Thông tin file" title="Thông tin file"><span class="material-symbols-outlined">info</span></button>
-            <button class="text-btn" onclick="document.getElementById('file-input').click()">
-                <span class="material-symbols-outlined">file_open</span>Mở tệp
-            </button>
+
+        <div class="app-bar-right">
+            <div class="split-btn" id="save-split" hidden>
+                <button class="save-main" onclick="saveDoc('save')" title="Lưu (Ctrl+S)">Lưu</button>
+                <button class="save-arrow" onclick="openSaveMenu(this)" aria-label="Tuỳ chọn lưu"><span class="material-symbols-outlined">arrow_drop_down</span></button>
+            </div>
+            <button class="text-btn" id="open-btn" onclick="openFile()"><span class="material-symbols-outlined">file_open</span>Mở tệp</button>
+            <button class="icon-btn" id="more-btn" onclick="openMoreMenu(this)" aria-label="Thêm" title="Thêm"><span class="material-symbols-outlined">more_vert</span></button>
             <input type="file" id="file-input" accept="application/pdf,.pdf" style="display:none">
         </div>
     </header>
 
-    <div class="main-container">
+    <div class="main-container" id="main">
         <aside class="sidebar collapsed hidden-state" id="sidebar">
+            <div class="sidebar-head">
+                <button class="icon-btn" onclick="toggleSidebar()" aria-label="Thu gọn" title="Thu gọn"><span class="material-symbols-outlined">chevron_left</span></button>
+            </div>
             <div class="sidebar-content" id="sidebar-content"></div>
             <div class="resize-handle" id="resize-handle"></div>
         </aside>
+
+        <button class="icon-btn sidebar-expand" id="sidebar-expand" onclick="toggleSidebar()" hidden aria-label="Hiện các trang" title="Hiện các trang"><span class="material-symbols-outlined">chevron_right</span></button>
 
         <main class="viewer-container" id="viewer-container">
             <div id="pages-container"></div>
 
             <div id="empty-state">
-                <span class="material-symbols-outlined" style="font-size: 64px; margin-bottom: 16px;">picture_as_pdf</span>
+                <span class="material-symbols-outlined" style="font-size: 64px; margin-bottom: 8px;">picture_as_pdf</span>
                 <h2>Sẵn sàng đọc PDF</h2>
-                <p>Mở tệp để bắt đầu</p>
-                <p style="font-size: 12px; margin-top: 8px; opacity: 0.5;">Hỗ trợ mở file trực tiếp từ hệ thống (PWA)</p>
+                <p>Mở tệp hoặc kéo thả file PDF vào đây</p>
+                <p style="font-size: 12px; margin-top: 4px; opacity: 0.6;">Hỗ trợ mở file trực tiếp từ hệ thống (PWA)</p>
+                <button class="text-btn" onclick="openFile()"><span class="material-symbols-outlined">file_open</span>Mở tệp</button>
             </div>
         </main>
 
-        <nav class="fab-nav hidden" id="fab-nav">
-            <button class="icon-btn" onclick="changePage(-1)" aria-label="Trang trước" title="Trang trước"><span class="material-symbols-outlined">arrow_upward</span></button>
-            <div class="input-pill" style="height: 36px; border-radius: 100px;">
-                <input type="text" id="curr-page-input" value="1" onchange="handlePageInput(this.value)" aria-label="Trang hiện tại">
-                <span style="opacity: 0.5; margin: 0 4px;">/</span>
-                <span id="total-page" style="font-weight: 700; margin-right: 4px;">0</span>
+        <aside class="tool-panel" id="tool-panel"><div class="tool-panel-inner" id="tool-panel-inner"></div></aside>
+
+        <section class="info-sheet" id="info-sheet" hidden>
+            <div class="info-head">
+                <h3>Thông tin khác</h3>
+                <button class="icon-btn" onclick="closeInfo()" aria-label="Đóng" title="Đóng"><span class="material-symbols-outlined">close</span></button>
             </div>
-            <button class="icon-btn" onclick="changePage(1)" aria-label="Trang sau" title="Trang sau"><span class="material-symbols-outlined">arrow_downward</span></button>
-        </nav>
+            <div id="info-body"></div>
+        </section>
     </div>
 
     <div id="print-zone"></div>
@@ -337,16 +478,130 @@
         <p style="margin-top: 8px; opacity: 0.7; font-size: 14px;">Vui lòng đợi trong giây lát</p>
     </div>
 
-    <div class="modal" id="info-modal" onclick="closeModal()">
+    <div class="modal" id="sig-modal">
         <div class="modal-card" onclick="event.stopPropagation()">
-            <h3 style="margin-bottom: 24px; font-weight: 600;">Thông tin file</h3>
-            <div id="meta-list"></div>
-            <button class="text-btn" style="width: 100%; margin-top: 24px; justify-content: center;" onclick="closeModal()">Đóng</button>
+            <div class="modal-head">
+                <h3>Vẽ chữ ký</h3>
+                <button class="icon-btn" onclick="closeSigDialog()" aria-label="Đóng" title="Đóng"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="sig-pad" id="sig-pad">
+                <div class="sig-hint" id="sig-hint">Vẽ chữ ký của bạn trong khu vực này</div>
+                <div class="sig-line"><span class="material-symbols-outlined">close</span></div>
+                <canvas id="sig-canvas"></canvas>
+            </div>
+            <div class="modal-actions">
+                <button class="text-btn tonal" onclick="clearSigPad()">Xoá</button>
+                <button class="text-btn" onclick="finishSigDialog()">Xong</button>
+            </div>
         </div>
     </div>
 
+    <div class="toast" id="toast" role="status"></div>
+
     <script>
-        // ===== Service worker =====
+        // ====================================================================
+        //  Cấu hình
+        // ====================================================================
+        const PDFJS_ASSETS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';   // cMap + font chuẩn cho PDF không nhúng font
+        const LIBS = {                                                                 // chỉ tải khi lưu / in bản đã chỉnh sửa
+            pdfLib: 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+            fontkit: 'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js'
+        };
+        const FONT_CDN = 'https://cdn.jsdelivr.net/npm/@expo-google-fonts/';
+        // Font đầy đủ (có tiếng Việt) — dùng cả để hiển thị lẫn nhúng vào PDF nên chữ trên màn hình và trong file khớp nhau
+        const FONTS = {
+            roboto: { label: 'Roboto',      css: 'PDFR Roboto',      pkg: 'roboto@0.4.3',      file: 'Roboto',     generic: 'sans-serif' },
+            serif:  { label: 'Noto Serif',  css: 'PDFR Noto Serif',  pkg: 'noto-serif@0.4.2',  file: 'NotoSerif',  generic: 'serif' },
+            mono:   { label: 'Roboto Mono', css: 'PDFR Roboto Mono', pkg: 'roboto-mono@0.4.2', file: 'RobotoMono', generic: 'monospace' }
+        };
+        const fontUrl = (key, bold, italic) => {
+            const f = FONTS[key], st = (bold ? '700Bold' : '400Regular') + (italic ? '_Italic' : '');
+            return `${FONT_CDN}${f.pkg}/${st}/${f.file}_${st}.ttf`;
+        };
+
+        const MIN_ZOOM = 0.1, MAX_ZOOM = 5;
+        const MAX_CANVAS_PIXELS = 16 * 1024 * 1024;
+        const PRINT_SCALE = 2;
+        const THUMB_W = 200;
+        const LH = 1.25;                         // line-height của hộp văn bản (phải khớp CSS .annBody)
+        const PAD = 4;                           // padding của hộp văn bản (phải khớp CSS .annBody)
+        const HL_OPACITY = 0.4;
+        const PEN_WIDTHS = [1, 2, 3.5, 5.5, 8];
+        const HL_WIDTHS = [8, 12, 16, 24, 32];
+        const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72, 96];
+        const PALETTE = [
+            '#000000', '#5f6368', '#9aa0a6', '#dadce0', '#ffffff',
+            '#f28b82', '#fdd663', '#81c995', '#78d9ec', '#8ab4f8',
+            '#ea4335', '#fbbc04', '#34a853', '#24c1e0', '#4285f4',
+            '#c5221f', '#f29900', '#188038', '#12a4af', '#1967d2'
+        ];
+        const SVGNS = 'http://www.w3.org/2000/svg';
+        const SIG_KEY = 'pdfreader.signatures.v1';
+
+        // ====================================================================
+        //  Tiện ích
+        // ====================================================================
+        const $ = id => document.getElementById(id);
+        const clone = o => JSON.parse(JSON.stringify(o));
+        const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+        const r2 = v => Math.round(v * 100) / 100;
+        const pad2 = n => String(n).padStart(2, '0');
+
+        function el(tag, props = {}, ...kids) {
+            const n = document.createElement(tag);
+            for (const [k, v] of Object.entries(props)) {
+                if (v == null || v === false) continue;
+                if (k === 'class') n.className = v;
+                else if (k === 'text') n.textContent = v;
+                else if (k === 'style') n.style.cssText = v;
+                else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+                else n.setAttribute(k, v === true ? '' : v);
+            }
+            kids.flat().forEach(c => { if (c != null && c !== false) n.append(c); });
+            return n;
+        }
+        const icon = (name, cls = '') => el('span', { class: 'material-symbols-outlined ' + cls, text: name });
+
+        let toastTimer = 0;
+        function toast(msg) {
+            const t = $('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+        }
+
+        const fmtSize = b => {
+            if (!b && b !== 0) return '—';
+            const f = (v, d) => v.toLocaleString('vi-VN', { maximumFractionDigits: d });
+            if (b < 1000) return b + ' byte';
+            if (b < 1e6) return f(b / 1e3, 0) + ' kB';
+            if (b < 1e9) return f(b / 1e6, 1) + ' MB';
+            return f(b / 1e9, 2) + ' GB';
+        };
+        function fmtDate(d) {
+            if (!d || isNaN(+d)) return '—';
+            d = new Date(d);
+            return `${d.getDate()} thg ${d.getMonth() + 1}, ${d.getFullYear()} lúc ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        }
+        // "D:20260929210100+07'00'" -> Date
+        function parsePdfDate(s) {
+            const m = typeof s === 'string' && s.match(/^D:(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?(Z|[+-]\d{2}'?(?:\d{2}'?)?)?/);
+            if (!m) return null;
+            const [, y, mo = '01', d = '01', h = '00', mi = '00', se = '00', tz] = m;
+            let ms = Date.UTC(+y, +mo - 1, +d, +h, +mi, +se);
+            if (tz && tz !== 'Z') {
+                const t = tz.match(/([+-])(\d{2})'?(\d{2})?/);
+                if (t) ms -= (t[1] === '-' ? -1 : 1) * ((+t[2]) * 60 + (+(t[3] || 0))) * 60000;
+            } else if (!tz) {
+                ms += new Date(+y, +mo - 1, +d).getTimezoneOffset() * 60000;
+            }
+            return new Date(ms);
+        }
+
+        // ====================================================================
+        //  Service worker + PWA
+        // ====================================================================
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
@@ -354,45 +609,110 @@
                     .catch(err => console.log('SW registration failed!', err));
             });
         }
-
-        // ===== PWA launch handler (mở file PDF từ hệ thống) =====
         if ('launchQueue' in window) {
             window.launchQueue.setConsumer(async (launchParams) => {
                 if (launchParams.files && launchParams.files.length) {
-                    const file = await launchParams.files[0].getFile();
-                    loadFile(file);
+                    const handle = launchParams.files[0];
+                    loadFile(await handle.getFile(), handle);
                 }
             });
         }
 
-        // ===== pdf.js =====
+        // @font-face cho font chữ dùng khi chèn văn bản (trình duyệt chỉ tải file khi thực sự dùng tới)
+        (function injectFontFaces() {
+            let css = '';
+            for (const key of Object.keys(FONTS))
+                for (const bold of [0, 1])
+                    for (const italic of [0, 1])
+                        css += `@font-face{font-family:"${FONTS[key].css}";font-weight:${bold ? 700 : 400};font-style:${italic ? 'italic' : 'normal'};font-display:swap;src:url("${fontUrl(key, bold, italic)}") format("truetype");}`;
+            $('font-faces').textContent = css;
+        })();
+
+        // ====================================================================
+        //  Trạng thái
+        // ====================================================================
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        // Font chuẩn + cMap để PDF không nhúng font (tiếng Việt, CJK...) vẫn hiển thị / lấy chữ đúng
-        const PDFJS_ASSETS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';
 
-        const MIN_ZOOM = 0.1, MAX_ZOOM = 5;
-        const MAX_CANVAS_PIXELS = 16 * 1024 * 1024;   // giới hạn canvas (an toàn cho iOS / máy yếu)
-        const PRINT_SCALE = 2;
-        const THUMB_W = 200;
+        const viewer = $('viewer-container');
+        const pagesContainer = $('pages-container');
+        const sidebar = $('sidebar');
+        const sidebarContent = $('sidebar-content');
 
-        const viewer = document.getElementById('viewer-container');
-        const pagesContainer = document.getElementById('pages-container');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarContent = document.getElementById('sidebar-content');
+        let pdfDoc = null, scale = 1.0, baseScale = 1.0, currPage = 1;
+        let docToken = 0, docEncrypted = false;
+        let fileInfo = { name: '', size: 0, lastModified: 0, handle: null };
+        let pageSizes = [];                 // [n] = {w, h}: kích thước trang ở scale 1, theo hướng gốc của trang (đã tính /Rotate của PDF)
+        const renderSet = new Set();
+        const renderTasks = new Map();
+        let printing = false, printCleanup = null;
 
-        let pdfDoc = null, scale = 1.0, baseScale = 1.0, rotation = 0, currPage = 1;
-        let docToken = 0;
-        let pageSizes = [];                 // [n] = {w, h} ở scale 1 (đã tính góc xoay gốc của trang, chưa tính xoay của user)
-        const renderSet = new Set();        // các trang đang nằm trong vùng render (gần màn hình)
-        const renderTasks = new Map();      // num -> {gen, cancel}
-        let printing = false;
-        let printCleanup = null;
+        // Dữ liệu chỉnh sửa: ann[n] = danh sách chú thích của trang n; rot[n] = góc xoay thêm do người dùng (0/90/180/270, theo chiều kim đồng hồ)
+        let state = { ann: {}, rot: {} };
+        let hist = [clone(state)], hi = 0;
+        let tool = null;                    // 'text' | 'draw' | 'sign' | 'select' | null
+        let sel = null;                     // {n, id}
+        let editing = null;                 // {n, id, isNew, snap}
+        let idSeq = 0;
+        const newId = () => 'a' + (++idSeq) + Date.now().toString(36);
+
+        const textStyle = { font: 'roboto', size: 14, bold: false, italic: false, align: 'left', color: '#000000' };
+        const inkCfg = { mode: 'pen', pen: { size: 2, color: '#000000' }, hl: { size: 2, color: '#fbbc04' }, tab: 'palette' };
+        let sigs = [];                      // chữ ký đã lưu: [{src, w, h}]
+        let activeSig = -1;
+        try { sigs = JSON.parse(localStorage.getItem(SIG_KEY) || '[]').filter(s => s && s.src); } catch (e) { sigs = []; }
 
         const wrapperOf = n => pagesContainer.children[n - 1];
+        const userRot = n => state.rot[n] || 0;
+        const isDirty = () => hi !== 0;
+        const findAnn = (n, id) => (state.ann[n] || []).find(a => a.id === id);
 
-        // ===== Tải file =====
+        // ====================================================================
+        //  Menu popup
+        // ====================================================================
+        let menuEl = null, menuAnchor = null;
+        function closeMenu() {
+            if (!menuEl) return;
+            menuEl.remove(); menuEl = null; menuAnchor = null;
+            document.removeEventListener('pointerdown', menuOutside, true);
+            document.removeEventListener('keydown', menuKey, true);
+        }
+        function menuOutside(e) {
+            if (menuEl && !menuEl.contains(e.target) && !(menuAnchor && menuAnchor.contains(e.target))) closeMenu();
+        }
+        function menuKey(e) { if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); } }
+
+        // items: [{label, icon, kbd, disabled, selected, divider, onClick, style}] hoặc một Node tuỳ ý
+        function openMenu(anchor, items, opts = {}) {
+            if (menuEl && menuAnchor === anchor) { closeMenu(); return; }
+            closeMenu();
+            const m = el('div', { class: 'menu', role: 'menu' });
+            m.addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); });
+            (Array.isArray(items) ? items : [items]).forEach(it => {
+                if (it instanceof Node) { m.append(it); return; }
+                if (it.divider) { m.append(el('div', { class: 'menu-div' })); return; }
+                const b = el('button', { class: 'menu-item' + (it.selected ? ' selected' : ''), role: 'menuitem', disabled: it.disabled, style: it.style },
+                    it.icon ? icon(it.icon) : null, el('span', { text: it.label }), it.kbd ? el('span', { class: 'menu-kbd', text: it.kbd }) : null);
+                b.addEventListener('click', () => { if (!opts.keepOpen) closeMenu(); it.onClick && it.onClick(); });
+                m.append(b);
+            });
+            document.body.append(m);
+            const r = anchor.getBoundingClientRect(), mr = m.getBoundingClientRect();
+            let left = opts.alignRight ? r.right - mr.width : r.left;
+            left = clamp(left, 8, Math.max(8, innerWidth - mr.width - 8));
+            let top = r.bottom + 4;
+            if (top + mr.height > innerHeight - 8) top = Math.max(8, r.top - mr.height - 4);
+            m.style.left = left + 'px'; m.style.top = top + 'px';
+            menuEl = m; menuAnchor = anchor;
+            document.addEventListener('pointerdown', menuOutside, true);
+            document.addEventListener('keydown', menuKey, true);
+        }
+
+        // ====================================================================
+        //  Mở / tải file
+        // ====================================================================
         function teardownDocument() {
+            if (editing) { editing = null; }
             observer.disconnect();
             thumbObserver.disconnect();
             renderTasks.forEach(t => t.cancel());
@@ -402,28 +722,31 @@
             sidebarContent.textContent = '';
             if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} pdfDoc = null; }
             pageSizes = [];
-            rotation = 0;
             currPage = 1;
             thumbsObserving = false;
+            state = { ann: {}, rot: {} };
+            hist = [clone(state)]; hi = 0;
+            sel = null; tool = null; pagesContainer.dataset.tool = '';
+            document.querySelectorAll('[data-toolbtn]').forEach(b => b.classList.remove('active'));
+            closeMenu(); closeInfo();
+            renderPanel();
         }
 
-        async function loadPDF(data, name) {
+        const docOptions = data => ({ data, cMapUrl: PDFJS_ASSETS + 'cmaps/', cMapPacked: true, standardFontDataUrl: PDFJS_ASSETS + 'standard_fonts/' });
+
+        async function loadPDF(data, name, opts = {}) {
             const token = ++docToken;
-            let cancelledByUser = false;
-            let loadingTask = null;
+            let cancelledByUser = false, loadingTask = null;
             try {
                 teardownDocument();
+                docEncrypted = false;
                 viewer.scrollTo({ top: 0, left: 0, behavior: 'instant' });
                 document.title = name;
-                document.getElementById('app-title').textContent = name;
+                $('app-title').textContent = name;
 
-                loadingTask = pdfjsLib.getDocument({
-                    data,
-                    cMapUrl: PDFJS_ASSETS + 'cmaps/',
-                    cMapPacked: true,
-                    standardFontDataUrl: PDFJS_ASSETS + 'standard_fonts/'
-                });
+                loadingTask = pdfjsLib.getDocument(docOptions(data));
                 loadingTask.onPassword = (updatePassword, reason) => {
+                    docEncrypted = true;
                     const msg = reason === 2 ? 'Mật khẩu sai, nhập lại:' : 'File này có mật khẩu, nhập vào:';
                     const pw = window.prompt(msg);
                     if (pw === null) { cancelledByUser = true; loadingTask.destroy(); }
@@ -441,17 +764,25 @@
                 baseScale = Math.max(viewer.clientWidth - 80, 200) / b.width;
                 scale = baseScale;
 
-                document.getElementById('empty-state').style.display = 'none';
+                $('empty-state').style.display = 'none';
                 sidebar.classList.remove('hidden-state');
-                document.getElementById('fab-nav').classList.remove('hidden');
-                ['menu-btn', 'zoom-out-btn', 'zoom-in-btn', 'rotate-btn', 'info-btn', 'print-btn'].forEach(id => document.getElementById(id).disabled = false);
-                document.getElementById('total-page').textContent = doc.numPages;
+                if (innerWidth < 900) sidebar.classList.add('collapsed'); else sidebar.classList.remove('collapsed');
+                $('total-page').textContent = doc.numPages;
 
-                updateInputs();
                 renderStructure();
                 buildThumbs();
                 if (!sidebar.classList.contains('collapsed')) startThumbObserving();
+                updateInputs();
+                updateUI();
                 prefetchSizes(token);
+
+                if (opts.restore) {
+                    scale = clamp(opts.restore.rel, MIN_ZOOM, MAX_ZOOM) * baseScale;
+                    layoutAll();
+                    updateInputs();
+                    const w = wrapperOf(clamp(opts.restore.page, 1, doc.numPages));
+                    if (w) viewer.scrollTo({ top: w.offsetTop - 16, behavior: 'instant' });
+                }
             } catch (e) {
                 if (token !== docToken) return;
                 if (!cancelledByUser) alert('Lỗi tải PDF: ' + (e && e.message ? e.message : e));
@@ -462,26 +793,61 @@
 
         function resetToDefaultState() {
             document.title = 'PDF Reader';
-            document.getElementById('app-title').textContent = 'PDF Reader';
-            document.getElementById('empty-state').style.display = 'flex';
-            document.getElementById('fab-nav').classList.add('hidden');
-            ['menu-btn', 'zoom-out-btn', 'zoom-in-btn', 'rotate-btn', 'info-btn', 'print-btn'].forEach(id => document.getElementById(id).disabled = true);
+            $('app-title').textContent = 'PDF Reader';
+            $('empty-state').style.display = 'flex';
+            $('total-page').textContent = '0';
             sidebar.classList.add('collapsed', 'hidden-state');
+            fileInfo = { name: '', size: 0, lastModified: 0, handle: null };
+            updateUI();
         }
 
-        function loadFile(file) {
+        function loadFile(file, handle = null) {
             if (!file) return;
-            if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
-                alert('Đây không phải file PDF.');
-                return;
-            }
+            if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { alert('Đây không phải file PDF.'); return; }
+            if (pdfDoc && isDirty() && !confirm('Bạn có thay đổi chưa lưu. Vẫn mở tệp khác?')) return;
+            fileInfo = { name: file.name, size: file.size, lastModified: file.lastModified, handle };
             file.arrayBuffer().then(buf => loadPDF(new Uint8Array(buf), file.name));
         }
 
-        // ===== Bố cục trang =====
+        async function openFile() {
+            closeMenu();
+            if (window.showOpenFilePicker) {
+                try {
+                    const [h] = await window.showOpenFilePicker({ types: [{ description: 'Tệp PDF', accept: { 'application/pdf': ['.pdf'] } }], multiple: false });
+                    loadFile(await h.getFile(), h);
+                    return;
+                } catch (e) { if (e && e.name === 'AbortError') return; }
+            }
+            $('file-input').click();
+        }
+        $('file-input').onchange = e => {
+            const f = e.target.files[0];
+            if (f) loadFile(f);
+            e.target.value = '';
+        };
+
+        // Kéo thả file PDF vào cửa sổ
+        window.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+        window.addEventListener('drop', async e => {
+            e.preventDefault();
+            const item = e.dataTransfer.items && e.dataTransfer.items[0];
+            const fallback = item && item.kind === 'file' ? item.getAsFile() : e.dataTransfer.files[0];
+            let handle = null, file = null;
+            if (item && item.getAsFileSystemHandle) {
+                try {
+                    const h = await item.getAsFileSystemHandle();
+                    if (h && h.kind === 'file') { handle = h; file = await h.getFile(); }
+                } catch (_) {}
+            }
+            loadFile(file || fallback, handle);
+        });
+
+        // ====================================================================
+        //  Bố cục trang
+        // ====================================================================
         function pageDims(n) {
             const s = pageSizes[n] || pageSizes[1];
-            const swap = rotation % 180 !== 0;
+            const swap = userRot(n) % 180 !== 0;
             return { w: (swap ? s.h : s.w) * scale, h: (swap ? s.w : s.h) * scale };
         }
 
@@ -491,6 +857,7 @@
                 const { w, h } = pageDims(i + 1);
                 wrappers[i].style.width = w + 'px';
                 wrappers[i].style.height = h + 'px';
+                if (wrappers[i]._ann) setLayerGeom(i + 1, wrappers[i]._ann);
             }
         }
 
@@ -499,13 +866,11 @@
             if (!w) return null;
             return { page: currPage, frac: (viewer.scrollTop - w.offsetTop) / (w.offsetHeight || 1) };
         }
-
         function restoreAnchor(a) {
             const w = a && wrapperOf(a.page);
             if (w) viewer.scrollTo({ top: w.offsetTop + a.frac * w.offsetHeight, behavior: 'instant' });
         }
 
-        // Đổi scale / rotation: dàn lại TẤT CẢ trang rồi vẽ lại các trang đang gần màn hình
         function relayout(anchor) {
             layoutAll();
             restoreAnchor(anchor);
@@ -513,7 +878,6 @@
             renderSet.forEach(n => { const w = wrapperOf(n); if (w) renderPage(n, w); });
         }
 
-        // Lấy kích thước thật của mọi trang ở nền để placeholder đúng (PDF có trang khác khổ)
         async function prefetchSizes(token) {
             const doc = pdfDoc;
             let changed = false;
@@ -556,7 +920,6 @@
             for (const w of pagesContainer.children) observer.observe(w);
         }
 
-        // Vùng render rộng hơn màn hình 1.2 lần mỗi phía để cuộn mượt
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 const num = parseInt(entry.target.dataset.pageNumber);
@@ -571,21 +934,22 @@
             updateCurrentPage();
         }, { root: viewer, rootMargin: '120% 0px', threshold: 0 });
 
-        // ===== Vẽ trang (canvas + text layer) =====
+        // ====================================================================
+        //  Vẽ trang (canvas + text layer + lớp chú thích)
+        // ====================================================================
         function cancelRender(num) {
             const t = renderTasks.get(num);
             if (t) { t.cancel(); renderTasks.delete(num); }
         }
+        const stripLayers = wrapper => wrapper.querySelectorAll(':scope > canvas, :scope > .textLayer').forEach(n => { if (n.tagName === 'CANVAS') n.width = 0; n.remove(); });
 
         async function renderPage(num, wrapper) {
             const doc = pdfDoc;
             if (!doc) return;
-            const key = scale + '|' + rotation;
-            if (wrapper.dataset.rendered === 'true' && wrapper._key === key) {
-                wrapper.classList.remove('loading');
-                return;
-            }
-            if (wrapper._pendingKey === key) return;      // đang vẽ đúng scale/rotation này rồi
+            ensureAnnLayer(num, wrapper);
+            const key = scale + '|' + userRot(num);
+            if (wrapper.dataset.rendered === 'true' && wrapper._key === key) { wrapper.classList.remove('loading'); return; }
+            if (wrapper._pendingKey === key) return;
 
             const gen = (wrapper._gen = (wrapper._gen || 0) + 1);
             wrapper._pendingKey = key;
@@ -599,32 +963,25 @@
                 const page = await doc.getPage(num);
                 if (stale()) return;
 
-                const vp = page.getViewport({ scale, rotation: (page.rotate + rotation) % 360 });
+                const vp = page.getViewport({ scale, rotation: (page.rotate + userRot(num)) % 360 });
                 if (!pageSizes[num]) {
                     const b = page.getViewport({ scale: 1, rotation: page.rotate });
                     pageSizes[num] = { w: b.width, h: b.height };
                 }
                 wrapper.style.width = vp.width + 'px';
                 wrapper.style.height = vp.height + 'px';
+                if (wrapper._ann) setLayerGeom(num, wrapper._ann);
 
-                // Canvas (giới hạn số pixel để không crash khi zoom lớn)
                 const dpr = window.devicePixelRatio || 1;
                 let outScale = dpr;
-                if (vp.width * vp.height * dpr * dpr > MAX_CANVAS_PIXELS) {
-                    outScale = Math.sqrt(MAX_CANVAS_PIXELS / (vp.width * vp.height));
-                }
+                if (vp.width * vp.height * dpr * dpr > MAX_CANVAS_PIXELS) outScale = Math.sqrt(MAX_CANVAS_PIXELS / (vp.width * vp.height));
                 newCanvas = document.createElement('canvas');
                 newCanvas.width = Math.floor(vp.width * outScale);
                 newCanvas.height = Math.floor(vp.height * outScale);
                 newCanvas.style.width = vp.width + 'px';
                 newCanvas.style.height = vp.height + 'px';
-                canvasTask = page.render({
-                    canvasContext: newCanvas.getContext('2d'),
-                    viewport: vp,
-                    transform: [outScale, 0, 0, outScale, 0, 0]
-                });
+                canvasTask = page.render({ canvasContext: newCanvas.getContext('2d'), viewport: vp, transform: [outScale, 0, 0, outScale, 0, 0] });
 
-                // Text layer để chọn / copy chữ
                 newText = document.createElement('div');
                 newText.className = 'textLayer';
                 newText.style.setProperty('--scale-factor', vp.scale);
@@ -648,11 +1005,10 @@
                 ]);
                 if (stale()) return;
 
-                // Thay canvas/text layer cũ bằng bản mới (không bị nháy trắng khi zoom)
-                wrapper.querySelectorAll(':scope > canvas, :scope > .textLayer').forEach(n => { if (n.tagName === 'CANVAS') n.width = 0; n.remove(); });
-                wrapper.appendChild(newCanvas);
+                stripLayers(wrapper);
+                wrapper.insertBefore(newCanvas, wrapper.firstChild);
                 addEndOfContent(newText);
-                wrapper.appendChild(newText);
+                wrapper.insertBefore(newText, wrapper._ann || null);
 
                 wrapper.dataset.rendered = 'true';
                 wrapper._key = key;
@@ -668,15 +1024,16 @@
         }
 
         function unrenderPage(num, wrapper) {
+            if (editing && editing.n === num) finishEdit();
             wrapper._gen = (wrapper._gen || 0) + 1;
             wrapper._pendingKey = null;
             cancelRender(num);
-            wrapper.querySelectorAll(':scope > canvas, :scope > .textLayer').forEach(n => { if (n.tagName === 'CANVAS') n.width = 0; n.remove(); });
+            stripLayers(wrapper);
+            if (wrapper._ann) { wrapper._ann.remove(); wrapper._ann = null; }
             wrapper.dataset.rendered = 'false';
             wrapper.classList.add('loading');
         }
 
-        // Giống TextLayerBuilder của pdf.js: giúp bôi đen chữ không bị "nhảy" khi kéo qua vùng trống
         function addEndOfContent(layer) {
             const end = document.createElement('div');
             end.className = 'endOfContent';
@@ -691,13 +1048,12 @@
             });
         }
         document.addEventListener('mouseup', () => {
-            document.querySelectorAll('.textLayer .endOfContent.active').forEach(e => {
-                e.style.top = '';
-                e.classList.remove('active');
-            });
+            document.querySelectorAll('.textLayer .endOfContent.active').forEach(e => { e.style.top = ''; e.classList.remove('active'); });
         });
 
-        // ===== Trang hiện tại (theo diện tích nhìn thấy nhiều nhất) =====
+        // ====================================================================
+        //  Trang hiện tại, cuộn
+        // ====================================================================
         function updateCurrentPage() {
             if (!pdfDoc) return;
             const vr = viewer.getBoundingClientRect();
@@ -709,13 +1065,8 @@
                 const vis = Math.min(r.bottom, vr.bottom) - Math.max(r.top, vr.top);
                 if (vis > bestVis || (vis === bestVis && num < best)) { bestVis = vis; best = num; }
             });
-            if (bestVis > 0 && best !== currPage) {
-                currPage = best;
-                updateInputs();
-                updateActiveThumb();
-            }
+            if (bestVis > 0 && best !== currPage) { currPage = best; updateInputs(); updateActiveThumb(); }
         }
-
         let scrollTick = false;
         viewer.addEventListener('scroll', () => {
             if (scrollTick) return;
@@ -723,37 +1074,46 @@
             requestAnimationFrame(() => { scrollTick = false; updateCurrentPage(); });
         }, { passive: true });
 
-        // ===== Zoom / xoay / điều hướng =====
+        // ====================================================================
+        //  Zoom / điều hướng
+        // ====================================================================
         function setZoom(rel) {
             if (!pdfDoc) return;
-            rel = Math.min(Math.max(rel, MIN_ZOOM), MAX_ZOOM);
+            rel = clamp(rel, MIN_ZOOM, MAX_ZOOM);
             const newScale = rel * baseScale;
             if (Math.abs(newScale - scale) < 1e-6) { updateInputs(); return; }
             const a = captureAnchor();
             scale = newScale;
             relayout(a);
         }
-
-        function handleZoomInput(val) {
-            const num = parseInt(val);
-            if (isNaN(num)) { updateInputs(); return; }
-            setZoom(num / 100);
-        }
-        function zoomIn() { setZoom(scale / baseScale * 1.25); }
-        function zoomOut() { setZoom(scale / baseScale / 1.25); }
-        function rotate() {
+        const relZoom = () => scale / baseScale;
+        const zoomIn = () => setZoom(relZoom() * 1.25);
+        const zoomOut = () => setZoom(relZoom() / 1.25);
+        function fitPage() {
             if (!pdfDoc) return;
-            const a = captureAnchor();
-            rotation = (rotation + 90) % 360;
-            relayout(a);
+            const d = pageDims(currPage), cur = scale;
+            const sw = (viewer.clientWidth - 80) / (d.w / cur), sh = (viewer.clientHeight - 64) / (d.h / cur);
+            setZoom(Math.min(sw, sh) / baseScale);
         }
 
         function updateInputs() {
-            const rel = scale / baseScale;
-            document.getElementById('zoom-input').value = Math.round(rel * 100);
-            document.getElementById('curr-page-input').value = currPage;
-            document.getElementById('zoom-in-btn').disabled = !pdfDoc || rel >= MAX_ZOOM - 1e-6;
-            document.getElementById('zoom-out-btn').disabled = !pdfDoc || rel <= MIN_ZOOM + 1e-6;
+            const rel = relZoom();
+            $('zoom-btn').title = `Thu phóng (${Math.round(rel * 100)}%)`;
+            $('curr-page-input').value = currPage;
+        }
+
+        function openZoomMenu(anchor) {
+            const rel = relZoom();
+            const items = [
+                { label: 'Vừa chiều rộng', icon: 'fit_width', onClick: () => setZoom(1) },
+                { label: 'Vừa trang', icon: 'fit_page_width', onClick: fitPage },
+                { divider: true },
+                { label: 'Phóng to', icon: 'zoom_in', kbd: 'Ctrl +', disabled: rel >= MAX_ZOOM - 1e-6, onClick: zoomIn },
+                { label: 'Thu nhỏ', icon: 'zoom_out', kbd: 'Ctrl −', disabled: rel <= MIN_ZOOM + 1e-6, onClick: zoomOut },
+                { divider: true },
+                ...[50, 75, 100, 125, 150, 200, 300].map(p => ({ label: p + '%', selected: Math.round(rel * 100) === p, onClick: () => setZoom(p / 100) }))
+            ];
+            openMenu(anchor, items);
         }
 
         function goToPage(num) {
@@ -767,7 +1127,18 @@
         }
         function changePage(dir) { handlePageInput(currPage + dir); }
 
-        // ===== Thumbnail (lazy) =====
+        // Ctrl + lăn chuột / chụm hai ngón để zoom
+        let wheelAcc = 1, wheelRaf = 0;
+        viewer.addEventListener('wheel', e => {
+            if (!(e.ctrlKey || e.metaKey) || !pdfDoc) return;
+            e.preventDefault();
+            wheelAcc *= Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.04 : 0.0025));
+            if (!wheelRaf) wheelRaf = requestAnimationFrame(() => { wheelRaf = 0; const f = wheelAcc; wheelAcc = 1; setZoom(relZoom() * f); });
+        }, { passive: false });
+
+        // ====================================================================
+        //  Thumbnail (lazy) + xoay từng trang
+        // ====================================================================
         let thumbsObserving = false;
         const thumbObserver = new IntersectionObserver((entries) => {
             entries.forEach(e => {
@@ -779,25 +1150,22 @@
 
         function thumbCanvasSize(n) {
             const s = pageSizes[n] || pageSizes[1];
-            return { w: THUMB_W, h: Math.max(1, Math.round(THUMB_W * s.h / s.w)) };
+            const swap = userRot(n) % 180 !== 0;
+            const w = swap ? s.h : s.w, h = swap ? s.w : s.h;
+            return { w: THUMB_W, h: Math.max(1, Math.round(THUMB_W * h / w)) };
         }
 
         function buildThumbs() {
             const frag = document.createDocumentFragment();
             for (let i = 1; i <= pdfDoc.numPages; i++) {
-                const item = document.createElement('div');
-                item.className = 'thumb-item';
-                item.id = `thumb-${i}`;
-                item.dataset.page = i;
-                item.onclick = () => goToPage(i);
                 const can = document.createElement('canvas');
                 const { w, h } = thumbCanvasSize(i);
                 can.width = w; can.height = h;
-                const label = document.createElement('div');
-                label.className = 'thumb-label';
-                label.textContent = i;
-                item.appendChild(can);
-                item.appendChild(label);
+                const item = el('div', { class: 'thumb-item', id: `thumb-${i}`, 'data-page': i, onclick: () => goToPage(i) },
+                    el('div', { class: 'thumb-side' },
+                        el('div', { text: String(i) }),
+                        el('button', { class: 'icon-btn', title: 'Xoay trang', 'aria-label': 'Xoay trang ' + i, onclick: e => { e.stopPropagation(); rotatePage(i); } }, icon('rotate_90_degrees_ccw'))),
+                    el('div', { class: 'thumb-img' }, can));
                 frag.appendChild(item);
             }
             sidebarContent.appendChild(frag);
@@ -812,22 +1180,30 @@
                 if (can.height !== h) { can.width = w; can.height = h; }
             });
         }
-
         function startThumbObserving() {
             if (thumbsObserving || !pdfDoc) return;
             thumbsObserving = true;
             sidebarContent.querySelectorAll('.thumb-item:not([data-done])').forEach(el => thumbObserver.observe(el));
         }
-
+        function refreshThumb(n) {
+            const item = $(`thumb-${n}`);
+            if (!item) return;
+            delete item.dataset.done;
+            const can = item.querySelector('canvas');
+            const { w, h } = thumbCanvasSize(n);
+            can.width = w; can.height = h;
+            if (thumbsObserving) thumbObserver.observe(item);
+        }
         async function renderThumb(num, item) {
             const doc = pdfDoc;
             if (!doc || item.dataset.done) return;
             try {
                 const page = await doc.getPage(num);
                 if (doc !== pdfDoc) return;
-                const base = page.getViewport({ scale: 1, rotation: page.rotate });
+                const rot = (page.rotate + userRot(num)) % 360;
+                const base = page.getViewport({ scale: 1, rotation: rot });
                 const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                const vp = page.getViewport({ scale: (THUMB_W * dpr) / base.width, rotation: page.rotate });
+                const vp = page.getViewport({ scale: (THUMB_W * dpr) / base.width, rotation: rot });
                 const can = item.querySelector('canvas');
                 can.width = Math.floor(vp.width);
                 can.height = Math.floor(vp.height);
@@ -835,81 +1211,965 @@
                 item.dataset.done = '1';
             } catch (e) { /* bị huỷ hoặc đổi file */ }
         }
-
         function updateActiveThumb() {
             sidebarContent.querySelectorAll('.thumb-item.active').forEach(t => t.classList.remove('active'));
-            const active = document.getElementById(`thumb-${currPage}`);
+            const active = $(`thumb-${currPage}`);
             if (!active) return;
             active.classList.add('active');
             const c = sidebarContent;
-            if (active.offsetTop < c.scrollTop || active.offsetTop + active.offsetHeight > c.scrollTop + c.clientHeight) {
+            if (active.offsetTop < c.scrollTop || active.offsetTop + active.offsetHeight > c.scrollTop + c.clientHeight)
                 c.scrollTop = active.offsetTop - (c.clientHeight - active.offsetHeight) / 2;
-            }
         }
-
         function toggleSidebar() {
             sidebar.classList.toggle('collapsed');
-            if (!sidebar.classList.contains('collapsed')) {
-                startThumbObserving();
-                updateActiveThumb();
+            if (!sidebar.classList.contains('collapsed')) { startThumbObserving(); updateActiveThumb(); }
+            updateUI();
+        }
+
+        function afterRotate(ns) {
+            const a = captureAnchor();
+            layoutAll();
+            restoreAnchor(a);
+            renderSet.forEach(n => { const w = wrapperOf(n); if (w) renderPage(n, w); });
+            ns.forEach(refreshThumb);
+            updateUI();
+        }
+        function rotatePage(n, deg = 270) {
+            if (!pdfDoc) return;
+            if (editing) finishEdit();
+            const v = ((userRot(n) + deg) % 360 + 360) % 360;
+            if (v) state.rot[n] = v; else delete state.rot[n];
+            commit();
+            afterRotate([n]);
+        }
+        function rotateAll() {
+            if (!pdfDoc) return;
+            if (editing) finishEdit();
+            const all = [];
+            for (let n = 1; n <= pdfDoc.numPages; n++) {
+                const v = (userRot(n) + 90) % 360;
+                if (v) state.rot[n] = v; else delete state.rot[n];
+                all.push(n);
+            }
+            commit();
+            afterRotate(all);
+        }
+
+        // ====================================================================
+        //  Lịch sử (hoàn tác / làm lại)
+        // ====================================================================
+        function commit() {
+            hist = hist.slice(0, hi + 1);
+            hist.push(clone(state));
+            hi = hist.length - 1;
+            updateUI();
+        }
+        function applyState(s) {
+            const prevRot = state.rot;
+            state = clone(s);
+            sel = null;
+            const a = captureAnchor();
+            layoutAll();
+            restoreAnchor(a);
+            renderSet.forEach(n => { const w = wrapperOf(n); if (w) { renderPage(n, w); fillAnnLayer(n); } });
+            const changed = [];
+            for (let n = 1; n <= pdfDoc.numPages; n++) if ((prevRot[n] || 0) !== userRot(n)) changed.push(n);
+            changed.forEach(refreshThumb);
+            renderPanel();
+            updateUI();
+        }
+        function undo() { if (editing) finishEdit(); if (pdfDoc && hi > 0) { hi--; applyState(hist[hi]); } }
+        function redo() { if (editing) finishEdit(); if (pdfDoc && hi < hist.length - 1) { hi++; applyState(hist[hi]); } }
+
+        // ====================================================================
+        //  Lớp chú thích: hình học + dựng DOM
+        // ====================================================================
+        function layerTransform(n, d, s) {
+            switch (userRot(n)) {
+                case 90:  return `translate(${d.h * s}px, 0) rotate(90deg) scale(${s})`;
+                case 180: return `translate(${d.w * s}px, ${d.h * s}px) rotate(180deg) scale(${s})`;
+                case 270: return `translate(0, ${d.w * s}px) rotate(270deg) scale(${s})`;
+                default:  return `scale(${s})`;
+            }
+        }
+        function setLayerGeom(n, layer) {
+            const d = pageSizes[n] || pageSizes[1];
+            if (!d) return;
+            layer.style.width = d.w + 'px';
+            layer.style.height = d.h + 'px';
+            layer.style.setProperty('--inv', 1 / scale);
+            layer.style.transform = layerTransform(n, d, scale);
+            const svg = layer.firstChild;
+            svg.setAttribute('width', d.w);
+            svg.setAttribute('height', d.h);
+        }
+        function ensureAnnLayer(n, wrapper) {
+            let layer = wrapper._ann;
+            if (!layer) {
+                layer = document.createElement('div');
+                layer.className = 'annLayer';
+                layer.dataset.page = n;
+                layer.appendChild(document.createElementNS(SVGNS, 'svg'));
+                layer.addEventListener('pointerdown', onLayerDown);
+                layer.addEventListener('dblclick', onLayerDbl);
+                wrapper.appendChild(layer);
+                wrapper._ann = layer;
+                setLayerGeom(n, layer);
+                fillAnnLayer(n);
+            } else setLayerGeom(n, layer);
+        }
+
+        // Vị trí con trỏ (client) -> toạ độ trang (đơn vị PDF, gốc ở góc trên trái theo hướng gốc của trang)
+        function toV0(n, clientX, clientY) {
+            const wr = wrapperOf(n).getBoundingClientRect();
+            const { w, h } = pageSizes[n] || pageSizes[1];
+            const r = userRot(n), swap = r % 180 !== 0;
+            const s = wr.width / (swap ? h : w);
+            const X = clientX - wr.left, Y = clientY - wr.top;
+            switch (r) {
+                case 90:  return [Y / s, h - X / s];
+                case 180: return [w - X / s, h - Y / s];
+                case 270: return [w - Y / s, X / s];
+                default:  return [X / s, Y / s];
+            }
+        }
+        function dToV0(n, dx, dy) {
+            const s = scale;
+            switch (userRot(n)) {
+                case 90:  return [dy / s, -dx / s];
+                case 180: return [-dx / s, -dy / s];
+                case 270: return [-dy / s, dx / s];
+                default:  return [dx / s, dy / s];
             }
         }
 
-        // ===== Thông tin file (dùng textContent, không innerHTML → chống XSS từ metadata PDF) =====
-        async function showInfo() {
+        function inkPath(pts) {
+            if (pts.length === 1) return `M ${r2(pts[0][0])} ${r2(pts[0][1])} l 0.01 0`;
+            let d = `M ${r2(pts[0][0])} ${r2(pts[0][1])}`;
+            for (let i = 1; i < pts.length - 1; i++) {
+                const [x, y] = pts[i], [x2, y2] = pts[i + 1];
+                d += ` Q ${r2(x)} ${r2(y)} ${r2((x + x2) / 2)} ${r2((y + y2) / 2)}`;
+            }
+            const l = pts[pts.length - 1];
+            return d + ` L ${r2(l[0])} ${r2(l[1])}`;
+        }
+        function makeInkPath(a) {
+            const p = document.createElementNS(SVGNS, 'path');
+            p.setAttribute('d', inkPath(a.pts));
+            p.setAttribute('fill', 'none');
+            p.setAttribute('stroke', a.color);
+            p.setAttribute('stroke-width', a.width);
+            p.setAttribute('stroke-linecap', 'round');
+            p.setAttribute('stroke-linejoin', 'round');
+            if (a.hl) p.setAttribute('stroke-opacity', HL_OPACITY);
+            return p;
+        }
+        function inkBBox(a) {
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            a.pts.forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); });
+            const m = a.width / 2 + 2;
+            return { x: x0 - m, y: y0 - m, w: x1 - x0 + 2 * m, h: y1 - y0 + 2 * m };
+        }
+
+        function applyTextStyle(node, a) {
+            const f = FONTS[a.font] || FONTS.roboto;
+            node.style.fontFamily = `"${f.css}", ${f.generic}`;
+            node.style.fontSize = a.size + 'px';
+            node.style.fontWeight = a.bold ? 700 : 400;
+            node.style.fontStyle = a.italic ? 'italic' : 'normal';
+            node.style.textAlign = a.align;
+            node.style.color = a.color;
+        }
+
+        function addAnnEl(n, layer, svg, a) {
+            if (a.type === 'ink') {
+                const g = document.createElementNS(SVGNS, 'g');
+                g.classList.add('annItem', 'annInk');
+                g.dataset.id = a.id;
+                const vis = makeInkPath(a);
+                const hit = makeInkPath(a);
+                hit.setAttribute('stroke', 'transparent');
+                hit.removeAttribute('stroke-opacity');
+                hit.setAttribute('stroke-width', Math.max(a.width, 14));
+                hit.classList.add('hit');
+                g.append(vis, hit);
+                svg.appendChild(g);
+            } else if (a.type === 'text') {
+                const item = el('div', { class: 'annItem annText', 'data-id': a.id, style: `left:${a.x}px;top:${a.y}px;width:${a.w}px` });
+                const body = el('div', { class: 'annBody', contenteditable: 'false', spellcheck: 'false' });
+                body.textContent = a.text;
+                applyTextStyle(body, a);
+                item.append(body, el('span', { class: 'annHandle' }));
+                layer.appendChild(item);
+            } else if (a.type === 'sign') {
+                const item = el('div', { class: 'annItem annSign', 'data-id': a.id, style: `left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px` });
+                const img = el('img', { src: a.src, alt: '', draggable: 'false' });
+                item.append(img, el('span', { class: 'annHandle' }));
+                layer.appendChild(item);
+            }
+        }
+        function fillAnnLayer(n) {
+            const wrapper = wrapperOf(n), layer = wrapper && wrapper._ann;
+            if (!layer) return;
+            const svg = layer.firstChild;
+            svg.textContent = '';
+            layer.querySelectorAll(':scope > .annItem').forEach(e => e.remove());
+            (state.ann[n] || []).forEach(a => addAnnEl(n, layer, svg, a));
+            refreshSelMark(n);
+        }
+        function annEl(n, id) {
+            const w = wrapperOf(n), layer = w && w._ann;
+            return layer ? layer.querySelector(`[data-id="${id}"]`) : null;
+        }
+
+        // ===== Chọn / bỏ chọn =====
+        function refreshSelMark(n) {
+            const w = wrapperOf(n), layer = w && w._ann;
+            if (!layer) return;
+            layer.querySelectorAll('.annItem.selected').forEach(e => { e.classList.remove('selected'); const b = e.querySelector('.selbox'); if (b) b.remove(); });
+            if (sel && sel.n === n) {
+                const e = annEl(n, sel.id), a = findAnn(n, sel.id);
+                if (e && a) {
+                    e.classList.add('selected');
+                    if (a.type === 'ink') {
+                        const bb = inkBBox(a);
+                        const r = document.createElementNS(SVGNS, 'rect');
+                        r.setAttribute('class', 'selbox');
+                        r.setAttribute('x', bb.x); r.setAttribute('y', bb.y); r.setAttribute('width', bb.w); r.setAttribute('height', bb.h);
+                        e.appendChild(r);
+                    }
+                }
+            }
+        }
+        function select(n, id) {
+            if (sel && (sel.n !== n || sel.id !== id)) { const old = sel; sel = null; refreshSelMark(old.n); }
+            sel = { n, id };
+            refreshSelMark(n);
+            renderPanel();
+            updateUI();
+        }
+        function clearSel() {
+            if (!sel) return;
+            const old = sel;
+            sel = null;
+            refreshSelMark(old.n);
+            renderPanel();
+            updateUI();
+        }
+        function deleteSelected() {
+            if (!sel) return;
+            if (editing) finishEdit();
+            const list = state.ann[sel.n] || [];
+            const i = list.findIndex(a => a.id === sel.id);
+            if (i < 0) return;
+            const n = sel.n;
+            list.splice(i, 1);
+            sel = null;
+            fillAnnLayer(n);
+            commit();
+            renderPanel();
+        }
+
+        // ====================================================================
+        //  Công cụ: xử lý con trỏ trên lớp chú thích
+        // ====================================================================
+        function setTool(t) {
             if (!pdfDoc) return;
+            if (tool === t) t = null;
+            if (editing) finishEdit();
+            if (t !== 'select' && t !== 'text') clearSel();
+            else if (t === 'text' && sel) { const a = findAnn(sel.n, sel.id); if (!a || a.type !== 'text') clearSel(); }
+            tool = t;
+            pagesContainer.dataset.tool = t || '';
+            document.querySelectorAll('[data-toolbtn]').forEach(b => b.classList.toggle('active', b.dataset.toolbtn === tool));
+            renderPanel();
+            updateUI();
+        }
+
+        function onLayerDown(e) {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            const layer = e.currentTarget, n = +layer.dataset.page;
+            const item = e.target.closest ? e.target.closest('.annItem') : null;
+            if (editing && e.target.closest && e.target.closest('.annBody[contenteditable]:not([contenteditable="false"])')) return;
+            if (tool === 'draw') return drawDown(e, n, layer);
+            if (tool === 'sign') return signDown(e, n);
+            if (tool === 'text') {
+                if (item && item.classList.contains('annText')) { e.preventDefault(); return beginEdit(n, item.dataset.id); }
+                return textDown(e, n);
+            }
+            if (tool === 'select' && item) return itemDown(e, n, item);
+        }
+        function onLayerDbl(e) {
+            const item = e.target.closest ? e.target.closest('.annText') : null;
+            if (item && (tool === 'select' || tool === 'text')) { const n = +e.currentTarget.dataset.page; beginEdit(n, item.dataset.id); }
+        }
+        pagesContainer.addEventListener('pointerdown', e => {
+            if (tool === 'select' && !e.target.closest('.annItem')) clearSel();
+        }, true);
+
+        // ----- Vẽ / tô sáng / tẩy -----
+        function drawDown(e, n, layer) {
+            e.preventDefault();
+            if (inkCfg.mode === 'eraser') return eraseDown(e, n, layer);
+            layer.setPointerCapture(e.pointerId);
+            const cfg = inkCfg[inkCfg.mode], hl = inkCfg.mode === 'hl';
+            const a = { id: newId(), type: 'ink', color: cfg.color, width: (hl ? HL_WIDTHS : PEN_WIDTHS)[cfg.size], hl, pts: [toV0(n, e.clientX, e.clientY)] };
+            const svg = layer.firstChild;
+            const p = makeInkPath(a);
+            svg.appendChild(p);
+            const minD = 1 / scale;
+            const move = ev => {
+                for (const c of (ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev])) {
+                    const pt = toV0(n, c.clientX, c.clientY), l = a.pts[a.pts.length - 1];
+                    if (Math.hypot(pt[0] - l[0], pt[1] - l[1]) >= minD) a.pts.push(pt);
+                }
+                p.setAttribute('d', inkPath(a.pts));
+            };
+            const up = () => {
+                layer.removeEventListener('pointermove', move);
+                layer.removeEventListener('pointerup', up);
+                layer.removeEventListener('pointercancel', up);
+                (state.ann[n] ||= []).push(a);
+                fillAnnLayer(n);
+                commit();
+            };
+            layer.addEventListener('pointermove', move);
+            layer.addEventListener('pointerup', up);
+            layer.addEventListener('pointercancel', up);
+        }
+        function distToSeg(p, a, b) {
+            const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+            let t = l2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 : 0;
+            t = clamp(t, 0, 1);
+            return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+        }
+        function eraseDown(e, n, layer) {
+            layer.setPointerCapture(e.pointerId);
+            let removed = false;
+            const hitAt = ev => {
+                const pt = toV0(n, ev.clientX, ev.clientY), list = state.ann[n] || [];
+                for (let i = list.length - 1; i >= 0; i--) {
+                    const a = list[i];
+                    if (a.type !== 'ink') continue;
+                    const r = 6 + a.width / 2;
+                    let hit = a.pts.length === 1 ? Math.hypot(pt[0] - a.pts[0][0], pt[1] - a.pts[0][1]) <= r : false;
+                    for (let k = 1; !hit && k < a.pts.length; k++) hit = distToSeg(pt, a.pts[k - 1], a.pts[k]) <= r;
+                    if (hit) { list.splice(i, 1); removed = true; fillAnnLayer(n); }
+                }
+            };
+            const move = ev => hitAt(ev);
+            const up = () => {
+                layer.removeEventListener('pointermove', move);
+                layer.removeEventListener('pointerup', up);
+                layer.removeEventListener('pointercancel', up);
+                if (removed) commit();
+            };
+            hitAt(e);
+            layer.addEventListener('pointermove', move);
+            layer.addEventListener('pointerup', up);
+            layer.addEventListener('pointercancel', up);
+        }
+
+        // ----- Chữ -----
+        function textDown(e, n) {
+            e.preventDefault();
+            if (editing) finishEdit();
+            const [x, y] = toV0(n, e.clientX, e.clientY);
+            const pw = (pageSizes[n] || pageSizes[1]).w;
+            const w = Math.max(60, Math.min(240, pw - x - 8));
+            const a = { id: newId(), type: 'text', x: r2(Math.max(0, x)), y: r2(Math.max(0, y - PAD - textStyle.size * LH / 2)), w: r2(w), text: '', ...clone(textStyle) };
+            (state.ann[n] ||= []).push(a);
+            fillAnnLayer(n);
+            beginEdit(n, a.id, true);
+        }
+        function readBody(body) {
+            let t = body.textContent.replace(/ /g, ' ');
+            return t.replace(/\n$/, '');
+        }
+        function beginEdit(n, id, isNew = false) {
+            if (editing && editing.id === id) return;
+            if (editing) finishEdit();
+            const item = annEl(n, id), a = findAnn(n, id);
+            if (!item || !a) return;
+            const body = item.querySelector('.annBody');
+            try { body.contentEditable = 'plaintext-only'; } catch (_) {}
+            if (body.contentEditable !== 'plaintext-only') body.contentEditable = 'true';
+            editing = { n, id, isNew, snap: JSON.stringify(a) };
+            select(n, id);
+            body.focus();
+            const range = document.createRange();
+            range.selectNodeContents(body); range.collapse(false);
+            const s = getSelection(); s.removeAllRanges(); s.addRange(range);
+            body.addEventListener('blur', finishEdit, { once: true });
+            body.addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.stopPropagation(); body.blur(); } });
+        }
+        function finishEdit() {
+            if (!editing) return;
+            const { n, id, isNew, snap } = editing;
+            editing = null;
+            const item = annEl(n, id), a = findAnn(n, id);
+            if (!a) return;
+            if (item) {
+                const body = item.querySelector('.annBody');
+                a.text = readBody(body);
+                body.contentEditable = 'false';
+                body.removeEventListener('blur', finishEdit);
+            }
+            if (!a.text.trim()) {
+                const list = state.ann[n], i = list.indexOf(a);
+                if (i >= 0) list.splice(i, 1);
+                if (sel && sel.id === id) sel = null;
+                fillAnnLayer(n);
+                if (!isNew) commit();
+                renderPanel(); updateUI();
+                return;
+            }
+            if (isNew || JSON.stringify(a) !== snap) commit();
+            getSelection().removeAllRanges();
+        }
+
+        // ----- Chữ ký -----
+        function signDown(e, n) {
+            e.preventDefault();
+            const sg = sigs[activeSig];
+            if (!sg) { toast('Hãy chọn hoặc tạo chữ ký trước.'); return; }
+            const [x, y] = toV0(n, e.clientX, e.clientY);
+            const pw = (pageSizes[n] || pageSizes[1]).w;
+            const w = Math.min(150, pw * 0.4), h = w * sg.h / sg.w;
+            const a = { id: newId(), type: 'sign', x: r2(x - w / 2), y: r2(y - h / 2), w: r2(w), h: r2(h), src: sg.src };
+            (state.ann[n] ||= []).push(a);
+            fillAnnLayer(n);
+            commit();
+            setTool('select');
+            select(n, a.id);
+        }
+
+        // ----- Chọn, kéo, đổi cỡ -----
+        function itemDown(e, n, itemEl) {
+            const id = itemEl.dataset.id, a = findAnn(n, id);
+            if (!a) return;
+            e.preventDefault();
+            select(n, id);
+            const isHandle = e.target.classList && e.target.classList.contains('annHandle');
+            const orig = clone(a), sx = e.clientX, sy = e.clientY;
+            let moved = false;
+            const cur = annEl(n, id);
+            const target = e.target;
+            try { target.setPointerCapture(e.pointerId); } catch (_) {}
+            const move = ev => {
+                if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 3) return;
+                moved = true;
+                const [vx, vy] = dToV0(n, ev.clientX - sx, ev.clientY - sy);
+                if (isHandle && a.type === 'text') {
+                    a.w = r2(Math.max(40, orig.w + vx));
+                    cur.style.width = a.w + 'px';
+                } else if (isHandle && a.type === 'sign') {
+                    a.w = r2(Math.max(20, orig.w + vx));
+                    a.h = r2(a.w * orig.h / orig.w);
+                    cur.style.width = a.w + 'px'; cur.style.height = a.h + 'px';
+                } else if (a.type === 'ink') {
+                    cur.setAttribute('transform', `translate(${vx} ${vy})`);
+                    a._dx = vx; a._dy = vy;
+                } else {
+                    a.x = r2(orig.x + vx); a.y = r2(orig.y + vy);
+                    cur.style.left = a.x + 'px'; cur.style.top = a.y + 'px';
+                }
+            };
+            const up = () => {
+                target.removeEventListener('pointermove', move);
+                target.removeEventListener('pointerup', up);
+                target.removeEventListener('pointercancel', up);
+                if (a.type === 'ink' && a._dx !== undefined) {
+                    a.pts = orig.pts.map(p => [r2(p[0] + a._dx), r2(p[1] + a._dy)]);
+                    delete a._dx; delete a._dy;
+                    fillAnnLayer(n);
+                }
+                if (moved) commit();
+            };
+            target.addEventListener('pointermove', move);
+            target.addEventListener('pointerup', up);
+            target.addEventListener('pointercancel', up);
+        }
+
+        // ====================================================================
+        //  Panel công cụ bên phải
+        // ====================================================================
+        $('tool-panel').addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); });
+
+        const selectedText = () => { if (!sel) return null; const a = findAnn(sel.n, sel.id); return a && a.type === 'text' ? a : null; };
+        const textTarget = () => editing ? findAnn(editing.n, editing.id) : selectedText();
+
+        function renderPanel() {
+            const inner = $('tool-panel-inner'), panel = $('tool-panel');
+            inner.textContent = '';
+            let mode = null;
+            if (tool === 'text') mode = 'text';
+            else if (tool === 'draw') mode = 'draw';
+            else if (tool === 'sign') mode = 'sign';
+            else if (tool === 'select' && selectedText()) mode = 'text';
+            panel.classList.toggle('open', !!mode);
+            if (mode === 'text') buildTextPanel(inner);
+            else if (mode === 'draw') buildDrawPanel(inner);
+            else if (mode === 'sign') buildSignPanel(inner);
+        }
+
+        function colorGrid(current, onPick) {
+            const g = el('div', { class: 'palette' });
+            PALETTE.forEach(c => g.append(el('button', { class: 'swatch' + (c.toLowerCase() === (current || '').toLowerCase() ? ' active' : ''), style: `background:${c}`, 'aria-label': c, title: c, onclick: () => onPick(c) })));
+            return g;
+        }
+
+        function setTextProp(key, val) {
+            textStyle[key] = val;
+            const t = textTarget();
+            if (t) {
+                t[key] = val;
+                const ref = editing || sel;
+                const item = annEl(ref.n, t.id);
+                if (item) applyTextStyle(item.querySelector('.annBody'), t);
+                if (!editing) commit();
+            }
+            renderPanel();
+        }
+
+        function buildTextPanel(inner) {
+            const t = textTarget() || textStyle;
+            const f = FONTS[t.font] || FONTS.roboto;
+            const fontBtn = el('button', { class: 'dd-btn', style: `font-family:"${f.css}",${f.generic}`, onclick: e => openMenu(e.currentTarget,
+                Object.keys(FONTS).map(k => ({ label: FONTS[k].label, selected: k === t.font, style: `font-family:"${FONTS[k].css}",${FONTS[k].generic}`, onClick: () => setTextProp('font', k) })), { }) },
+                el('span', { text: f.label }), icon('arrow_drop_down'));
+            const sizeBtn = el('button', { class: 'dd-btn', onclick: e => openMenu(e.currentTarget,
+                FONT_SIZES.map(s => ({ label: String(s), selected: s === t.size, onClick: () => setTextProp('size', s) }))) },
+                el('span', { text: String(t.size) }), icon('arrow_drop_down'));
+            const tog = (ic, on, fn, label) => el('button', { class: 'seg-btn' + (on ? ' active' : ''), onclick: fn, title: label, 'aria-label': label, 'aria-pressed': on }, icon(ic));
+            inner.append(
+                el('div', { class: 'panel-label', text: 'Phông chữ' }), fontBtn, sizeBtn,
+                el('div', { class: 'panel-label', text: 'Kiểu' }),
+                el('div', { class: 'seg' }, tog('format_bold', t.bold, () => setTextProp('bold', !t.bold), 'In đậm'), tog('format_italic', t.italic, () => setTextProp('italic', !t.italic), 'In nghiêng')),
+                el('div', { class: 'seg', style: 'margin-top:8px' },
+                    tog('format_align_left', t.align === 'left', () => setTextProp('align', 'left'), 'Căn trái'),
+                    tog('format_align_center', t.align === 'center', () => setTextProp('align', 'center'), 'Căn giữa'),
+                    tog('format_align_right', t.align === 'right', () => setTextProp('align', 'right'), 'Căn phải'),
+                    tog('format_align_justify', t.align === 'justify', () => setTextProp('align', 'justify'), 'Căn đều hai bên')),
+                el('div', { class: 'panel-label', text: 'Màu văn bản' }),
+                colorGrid(t.color, c => setTextProp('color', c)),
+                el('div', { class: 'panel-hint', text: 'Nhấp vào trang để thêm văn bản. Kéo chấm tròn ở góc để đổi độ rộng, dùng công cụ Chọn để di chuyển.' })
+            );
+        }
+
+        function buildDrawPanel(inner) {
+            const mode = inkCfg.mode, cfg = inkCfg[mode];
+            const modeBtn = (m, ic, label) => el('button', { class: 'seg-btn' + (mode === m ? ' active' : ''), title: label, 'aria-label': label, onclick: () => { inkCfg.mode = m; renderPanel(); } }, icon(ic));
+            inner.append(el('div', { class: 'mode-row' }, modeBtn('pen', 'ink_pen', 'Bút'), modeBtn('hl', 'ink_highlighter', 'Bút tô sáng'), modeBtn('eraser', 'ink_eraser', 'Tẩy')));
+            if (mode === 'eraser') {
+                inner.append(el('div', { class: 'panel-hint', text: 'Chạm hoặc kéo lên nét vẽ để xoá cả nét đó.' }));
+                return;
+            }
+            const widths = mode === 'hl' ? HL_WIDTHS : PEN_WIDTHS;
+            const sizes = el('div', { class: 'size-row' });
+            widths.forEach((w, i) => {
+                const lw = mode === 'hl' ? 2 + i * 2 : 1 + i * 1.5;
+                const svg = document.createElementNS(SVGNS, 'svg');
+                svg.setAttribute('width', 28); svg.setAttribute('height', 28); svg.setAttribute('viewBox', '0 0 28 28');
+                const ln = document.createElementNS(SVGNS, 'line');
+                ln.setAttribute('x1', 6); ln.setAttribute('y1', 22); ln.setAttribute('x2', 22); ln.setAttribute('y2', 6); ln.setAttribute('stroke-width', lw);
+                svg.append(ln);
+                sizes.append(el('button', { class: 'size-btn' + (cfg.size === i ? ' active' : ''), 'aria-label': 'Kích thước ' + (i + 1), onclick: () => { cfg.size = i; renderPanel(); } }, svg));
+            });
+            inner.append(el('div', { class: 'panel-label', text: 'Kích thước' }), sizes);
+            const tabs = el('div', { class: 'tabs' },
+                el('button', { class: 'tab' + (inkCfg.tab === 'palette' ? ' active' : ''), text: 'Bảng màu', onclick: () => { inkCfg.tab = 'palette'; renderPanel(); } }),
+                el('button', { class: 'tab' + (inkCfg.tab === 'custom' ? ' active' : ''), text: 'Tuỳ chỉnh', onclick: () => { inkCfg.tab = 'custom'; renderPanel(); } }));
+            inner.append(el('div', { class: 'panel-label', style: 'margin-top:20px' }), tabs);
+            if (inkCfg.tab === 'palette') inner.append(colorGrid(cfg.color, c => { cfg.color = c; renderPanel(); }));
+            else {
+                const code = el('code', { text: cfg.color.toUpperCase() });
+                const inp = el('input', { type: 'color', value: cfg.color, 'aria-label': 'Chọn màu' });
+                inp.addEventListener('input', () => { cfg.color = inp.value; code.textContent = inp.value.toUpperCase(); });
+                inner.append(el('div', { class: 'custom-color' }, inp, code));
+            }
+        }
+
+        function saveSigs() { try { localStorage.setItem(SIG_KEY, JSON.stringify(sigs)); } catch (e) {} }
+        function buildSignPanel(inner) {
+            if (!sigs.length) {
+                inner.append(el('div', { class: 'sig-empty', text: 'Tạo chữ ký để bắt đầu' }));
+            } else {
+                sigs.forEach((s, i) => {
+                    inner.append(el('div', { class: 'sig-card-item' + (i === activeSig ? ' active' : ''), onclick: () => { activeSig = i; renderPanel(); } },
+                        el('div', { class: 'sig-thumb' }, el('img', { src: s.src, alt: 'Chữ ký ' + (i + 1) })),
+                        el('a', { class: 'icon-btn', href: s.src, download: 'chu-ky.png', title: 'Tải chữ ký xuống', 'aria-label': 'Tải chữ ký xuống', onclick: e => e.stopPropagation() }, icon('download')),
+                        el('button', { class: 'icon-btn', title: 'Xoá chữ ký', 'aria-label': 'Xoá chữ ký', onclick: e => {
+                            e.stopPropagation();
+                            sigs.splice(i, 1);
+                            if (activeSig === i) activeSig = -1; else if (activeSig > i) activeSig--;
+                            saveSigs(); renderPanel();
+                        } }, icon('delete'))));
+                });
+            }
+            inner.append(el('div', { style: 'text-align:center;margin-top:6px' },
+                el('button', { class: 'text-btn tonal', style: 'display:inline-flex', onclick: openSigDialog }, icon('signature'), el('span', { text: sigs.length ? 'Vẽ một chữ ký khác' : 'Vẽ chữ ký' }))));
+            if (sigs.length) inner.append(el('div', { class: 'panel-hint', text: activeSig >= 0 ? 'Nhấp vào trang để đặt chữ ký.' : 'Chọn một chữ ký, rồi nhấp vào trang để đặt.' }));
+        }
+
+        // ----- Hộp thoại vẽ chữ ký -----
+        const sigCanvas = $('sig-canvas');
+        let sigStrokes = [], sigCur = null;
+        function sigInk() { return getComputedStyle(document.documentElement).getPropertyValue('--md-sys-color-on-surface').trim() || '#000'; }
+        function sizeSigCanvas() {
+            const r = sigCanvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+            sigCanvas.width = Math.max(1, Math.floor(r.width * dpr));
+            sigCanvas.height = Math.max(1, Math.floor(r.height * dpr));
+            redrawSig();
+        }
+        function strokePath(ctx, pts) {
+            ctx.beginPath();
+            if (pts.length === 1) { ctx.arc(pts[0][0], pts[0][1], ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fill(); return; }
+            ctx.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length - 1; i++) ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
+            ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+            ctx.stroke();
+        }
+        function redrawSig() {
+            const ctx = sigCanvas.getContext('2d'), dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.strokeStyle = ctx.fillStyle = sigInk();
+            ctx.lineWidth = 3; ctx.lineCap = ctx.lineJoin = 'round';
+            sigStrokes.forEach(s => strokePath(ctx, s));
+            $('sig-hint').style.visibility = sigStrokes.length ? 'hidden' : 'visible';
+        }
+        function openSigDialog() {
+            sigStrokes = []; sigCur = null;
+            $('sig-modal').classList.add('active');
+            requestAnimationFrame(sizeSigCanvas);
+        }
+        function closeSigDialog() { $('sig-modal').classList.remove('active'); }
+        function clearSigPad() { sigStrokes = []; redrawSig(); }
+        $('sig-modal').addEventListener('pointerdown', e => { if (e.target === $('sig-modal')) closeSigDialog(); });
+        sigCanvas.addEventListener('pointerdown', e => {
+            e.preventDefault();
+            sigCanvas.setPointerCapture(e.pointerId);
+            const r = sigCanvas.getBoundingClientRect();
+            sigCur = [[e.clientX - r.left, e.clientY - r.top]];
+            sigStrokes.push(sigCur);
+            redrawSig();
+        });
+        sigCanvas.addEventListener('pointermove', e => {
+            if (!sigCur) return;
+            const r = sigCanvas.getBoundingClientRect();
+            for (const c of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) sigCur.push([c.clientX - r.left, c.clientY - r.top]);
+            redrawSig();
+        });
+        const sigEnd = () => { sigCur = null; };
+        sigCanvas.addEventListener('pointerup', sigEnd);
+        sigCanvas.addEventListener('pointercancel', sigEnd);
+        window.addEventListener('resize', () => { if ($('sig-modal').classList.contains('active')) sizeSigCanvas(); });
+
+        function finishSigDialog() {
+            if (!sigStrokes.length) { closeSigDialog(); return; }
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            sigStrokes.forEach(s => s.forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }));
+            const m = 6, K = 2;
+            const w = Math.max(8, x1 - x0 + 2 * m), h = Math.max(8, y1 - y0 + 2 * m);
+            const c = document.createElement('canvas');
+            c.width = Math.ceil(w * K); c.height = Math.ceil(h * K);
+            const ctx = c.getContext('2d');
+            ctx.setTransform(K, 0, 0, K, -(x0 - m) * K, -(y0 - m) * K);
+            ctx.strokeStyle = ctx.fillStyle = '#111111';
+            ctx.lineWidth = 3.2; ctx.lineCap = ctx.lineJoin = 'round';
+            sigStrokes.forEach(s => strokePath(ctx, s));
+            sigs.unshift({ src: c.toDataURL('image/png'), w: w, h: h });
+            sigs = sigs.slice(0, 6);
+            activeSig = 0;
+            saveSigs();
+            closeSigDialog();
+            renderPanel();
+        }
+
+        // ====================================================================
+        //  Thông tin tệp
+        // ====================================================================
+        async function openInfo() {
+            if (!pdfDoc) return;
+            closeMenu();
             let info = {};
             try { info = (await pdfDoc.getMetadata()).info || {}; } catch (e) {}
-            const list = document.getElementById('meta-list');
-            list.textContent = '';
-            const rows = [['Tiêu đề', info.Title], ['Tác giả', info.Author], ['Số trang', pdfDoc.numPages], ['Công cụ', info.Producer]];
-            rows.forEach(([label, value]) => {
-                const row = document.createElement('div');
-                row.className = 'meta-row';
-                const l = document.createElement('span');
-                l.className = 'meta-label';
-                l.textContent = label;
-                const v = document.createElement('span');
-                v.className = 'meta-value';
-                v.textContent = (value === undefined || value === null || value === '') ? 'N/A' : String(value);
-                row.appendChild(l);
-                row.appendChild(v);
-                list.appendChild(row);
-            });
-            document.getElementById('info-modal').classList.add('active');
+            const body = $('info-body');
+            body.textContent = '';
+            const row = (ic, title, sub) => el('div', { class: 'info-row' }, icon(ic), el('div', {}, el('div', { class: 'info-title', text: title }), el('div', { class: 'info-sub', text: sub })));
+            body.append(
+                row('picture_as_pdf', 'Tài liệu PDF', fmtSize(fileInfo.size)),
+                row('calendar_today', 'Ngày sửa đổi', fmtDate(fileInfo.lastModified)),
+                row('description', 'Số lượng trang', String(pdfDoc.numPages)),
+                row('calendar_today', 'Ngày tạo', fmtDate(parsePdfDate(info.CreationDate))),
+                el('div', { class: 'info-divider' }));
+            const kv = [
+                ['Ứng dụng:', info.Creator], ['Phần mềm chuyển đổi:', info.Producer], ['Phiên bản PDF:', info.PDFFormatVersion],
+                ['Chế độ xem nhanh trên web:', info.IsLinearized ? 'Có' : 'Không']
+            ];
+            if (info.Title) kv.push(['Tiêu đề:', info.Title]);
+            if (info.Author) kv.push(['Tác giả:', info.Author]);
+            const grid = el('div', { class: 'info-kv' });
+            kv.forEach(([k, v]) => grid.append(el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v ? String(v) : '—' })));
+            body.append(grid);
+            $('info-sheet').hidden = false;
         }
-        function closeModal() { document.getElementById('info-modal').classList.remove('active'); }
+        function closeInfo() { $('info-sheet').hidden = true; }
 
-        // ===== In =====
+        // ====================================================================
+        //  Chia sẻ, menu phụ
+        // ====================================================================
+        async function shareFile() {
+            if (!pdfDoc) return;
+            if (isDirty()) { toast('Hãy lưu thay đổi trước khi chia sẻ.'); return; }
+            try {
+                const bytes = await pdfDoc.getData();
+                const file = new File([bytes], fileInfo.name || 'tai-lieu.pdf', { type: 'application/pdf' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: file.name });
+                else toast('Thiết bị này không hỗ trợ chia sẻ tệp.');
+            } catch (e) { if (!e || e.name !== 'AbortError') toast('Không chia sẻ được: ' + (e && e.message ? e.message : e)); }
+        }
+
+        function openMoreMenu(anchor) {
+            const has = !!pdfDoc;
+            openMenu(anchor, [
+                { label: 'Mở tệp…', icon: 'file_open', onClick: openFile },
+                { label: 'Thông tin', icon: 'info', disabled: !has, onClick: openInfo },
+                { divider: true },
+                { label: 'Xoay tất cả các trang', icon: 'rotate_right', disabled: !has, onClick: rotateAll },
+                { label: sidebar.classList.contains('collapsed') ? 'Hiện các trang' : 'Ẩn các trang', icon: 'view_sidebar', disabled: !has, onClick: toggleSidebar }
+            ], { alignRight: true });
+        }
+        function openSaveMenu(anchor) {
+            openMenu(anchor, [
+                { label: 'Lưu', icon: 'save', kbd: 'Ctrl S', onClick: () => saveDoc('save') },
+                { label: 'Lưu thành bản sao…', icon: 'file_copy', onClick: () => saveDoc('copy') }
+            ], { alignRight: true });
+        }
+
+        // ====================================================================
+        //  Ghi chú thích vào PDF (pdf-lib, chỉ tải khi cần)
+        // ====================================================================
+        function loadScript(src) {
+            return new Promise((res, rej) => {
+                const s = document.createElement('script');
+                s.src = src; s.onload = res;
+                s.onerror = () => rej(new Error('Không tải được thư viện ' + src.split('/').slice(-1)[0] + ' (kiểm tra kết nối mạng)'));
+                document.head.appendChild(s);
+            });
+        }
+        let libsPromise = null;
+        function loadLibs() {
+            if (!libsPromise) libsPromise = (async () => {
+                if (!window.PDFLib) await loadScript(LIBS.pdfLib);
+                if (!window.fontkit) await loadScript(LIBS.fontkit);
+            })().catch(e => { libsPromise = null; throw e; });
+            return libsPromise;
+        }
+        const fontBytesCache = new Map();
+        async function fetchFontBytes(key, bold, italic) {
+            const url = fontUrl(key, bold, italic);
+            if (!fontBytesCache.has(url)) {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Không tải được font ' + FONTS[key].label);
+                fontBytesCache.set(url, new Uint8Array(await res.arrayBuffer()));
+            }
+            return fontBytesCache.get(url);
+        }
+        const hexRgb = hex => { const v = parseInt(hex.slice(1), 16); return PDFLib.rgb(((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255); };
+
+        // Đo xem trình duyệt ngắt dòng chữ ở đâu (đúng như người dùng thấy) để PDF ngắt dòng y hệt
+        async function measureText(a) {
+            const f = FONTS[a.font] || FONTS.roboto;
+            try { await document.fonts.load(`${a.italic ? 'italic ' : ''}${a.bold ? 700 : 400} ${a.size}px "${f.css}"`, a.text); } catch (e) {}
+            const div = document.createElement('div');
+            div.className = 'annMeasure';
+            div.style.width = a.w + 'px';
+            applyTextStyle(div, a);
+            const probe = document.createElement('span');
+            probe.className = 'probe';
+            div.appendChild(probe);
+            const tn = document.createTextNode(a.text);
+            div.appendChild(tn);
+            document.body.appendChild(div);
+            const dr = div.getBoundingClientRect();
+            const baseline0 = probe.getBoundingClientRect().bottom - dr.top;
+            const lh = a.size * LH, text = a.text, lines = [];
+            const range = document.createRange();
+            let start = 0, lineTop = null;
+            for (let i = 0; i < text.length;) {
+                const cp = text.codePointAt(i), len = cp > 0xffff ? 2 : 1;
+                if (text[i] === '\n') { lines.push({ text: text.slice(start, i), para: true }); start = i + 1; lineTop = null; i += 1; continue; }
+                range.setStart(tn, i); range.setEnd(tn, i + len);
+                const rects = range.getClientRects();
+                if (rects.length) {
+                    const top = rects[0].top;
+                    if (lineTop === null) lineTop = top;
+                    else if (top > lineTop + lh * 0.5) { lines.push({ text: text.slice(start, i), para: false }); start = i; lineTop = top; }
+                }
+                i += len;
+            }
+            lines.push({ text: text.slice(start), para: true });
+            div.remove();
+            return { lines, baseline0, lh };
+        }
+
+        async function buildEditedPdf() {
+            if (docEncrypted) throw new Error('Chưa hỗ trợ lưu chỉnh sửa cho file có mật khẩu.');
+            await loadLibs();
+            const { PDFDocument, degrees, LineCapStyle } = PDFLib;
+            const bytes = await pdfDoc.getData();
+            const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+            doc.registerFontkit(fontkit);
+            const pages = doc.getPages();
+            const fonts = new Map(), images = new Map();
+            const getFont = (key, bold, italic) => {
+                const k = `${key}|${+bold}|${+italic}`;
+                if (!fonts.has(k)) fonts.set(k, fetchFontBytes(key, bold, italic).then(b => doc.embedFont(b, { subset: true })));
+                return fonts.get(k);
+            };
+
+            for (let n = 1; n <= pages.length; n++) {
+                const pg = pages[n - 1], list = state.ann[n] || [];
+                if (list.length) {
+                    const jsPage = await pdfDoc.getPage(n);
+                    const vp = jsPage.getViewport({ scale: 1, rotation: jsPage.rotate });
+                    const P = (x, y) => vp.convertToPdfPoint(x, y);
+                    const o0 = P(0, 0), o1 = P(1, 0);
+                    const ang = Math.atan2(o1[1] - o0[1], o1[0] - o0[0]) * 180 / Math.PI;
+
+                    for (const a of list) {
+                        if (a.type === 'ink') {
+                            const pts = a.pts.map(([x, y]) => { const p = P(x, y); return [p[0], -p[1]]; });   // pdf-lib lật trục y khi vẽ đường SVG
+                            pg.drawSvgPath(inkPath(pts), { x: 0, y: 0, borderColor: hexRgb(a.color), borderWidth: a.width, borderOpacity: a.hl ? HL_OPACITY : 1, borderLineCap: LineCapStyle.Round });
+                        } else if (a.type === 'sign') {
+                            if (!images.has(a.src)) images.set(a.src, await doc.embedPng(a.src));
+                            const p = P(a.x, a.y + a.h);
+                            pg.drawImage(images.get(a.src), { x: p[0], y: p[1], width: a.w, height: a.h, rotate: degrees(ang) });
+                        } else if (a.type === 'text' && a.text.trim()) {
+                            const font = await getFont(a.font, a.bold, a.italic);
+                            const m = await measureText(a);
+                            const color = hexRgb(a.color);
+                            const draw = (t, x, by) => { const p = P(a.x + x, a.y + by); pg.drawText(t.normalize('NFC'), { x: p[0], y: p[1], size: a.size, font, color, rotate: degrees(ang) }); };
+                            m.lines.forEach((ln, i) => {
+                                const t = ln.text.replace(/\s+$/, '');
+                                if (!t) return;
+                                const by = m.baseline0 + i * m.lh, wOf = s => font.widthOfTextAtSize(s.normalize('NFC'), a.size);
+                                if (a.align === 'justify' && !ln.para && /\S\s+\S/.test(t)) {
+                                    const words = t.trim().split(/\s+/), total = words.reduce((s, w) => s + wOf(w), 0);
+                                    const gap = Math.max(0, (a.w - 2 * PAD - total) / (words.length - 1));
+                                    let x = PAD;
+                                    words.forEach(w => { draw(w, x, by); x += wOf(w) + gap; });
+                                } else {
+                                    const lw = wOf(t);
+                                    const x = a.align === 'center' ? (a.w - lw) / 2 : a.align === 'right' ? a.w - PAD - lw : PAD;
+                                    draw(t, x, by);
+                                }
+                            });
+                        }
+                    }
+                }
+                const r = userRot(n);
+                if (r) pg.setRotation(degrees((pg.getRotation().angle + r) % 360));
+            }
+            doc.setModificationDate(new Date());
+            return await doc.save();
+        }
+
+        // ====================================================================
+        //  Lưu
+        // ====================================================================
+        function showBusy(msg) { $('print-status').textContent = msg; $('print-overlay').classList.add('active'); }
+        function hideBusy() { $('print-overlay').classList.remove('active'); }
+
+        function downloadBytes(bytes, name) {
+            const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+            const a = el('a', { href: url, download: name });
+            document.body.append(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+        }
+        async function writeHandle(handle, bytes) {
+            if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted' && (await handle.requestPermission({ mode: 'readwrite' })) !== 'granted')
+                throw new Error('Không có quyền ghi vào tệp.');
+            const w = await handle.createWritable();
+            await w.write(bytes);
+            await w.close();
+        }
+        const copyName = () => (fileInfo.name || 'tai-lieu.pdf').replace(/\.pdf$/i, '') + ' (bản sao).pdf';
+
+        async function saveDoc(mode) {
+            closeMenu();
+            if (!pdfDoc) return;
+            if (editing) finishEdit();
+            let bytes;
+            showBusy('Đang lưu...');
+            try { bytes = await buildEditedPdf(); }
+            catch (e) { hideBusy(); toast('Lỗi khi lưu: ' + (e && e.message ? e.message : e)); console.error(e); return; }
+            try {
+                if (mode === 'copy') {
+                    if (window.showSaveFilePicker) {
+                        hideBusy();
+                        const h = await window.showSaveFilePicker({ suggestedName: copyName(), types: [{ description: 'Tệp PDF', accept: { 'application/pdf': ['.pdf'] } }] });
+                        showBusy('Đang lưu...');
+                        await writeHandle(h, bytes);
+                        fileInfo.handle = h; fileInfo.name = h.name;
+                    } else { downloadBytes(bytes, copyName()); fileInfo.handle = null; fileInfo.name = copyName(); }
+                } else if (fileInfo.handle && fileInfo.handle.createWritable) {
+                    await writeHandle(fileInfo.handle, bytes);
+                } else {
+                    downloadBytes(bytes, fileInfo.name || 'tai-lieu.pdf');
+                }
+            } catch (e) {
+                hideBusy();
+                if (!e || e.name !== 'AbortError') toast('Lỗi khi lưu: ' + (e && e.message ? e.message : e));
+                return;
+            }
+            const keep = { page: currPage, rel: relZoom() };
+            fileInfo.size = bytes.length; fileInfo.lastModified = Date.now();
+            try { await loadPDF(bytes, fileInfo.name, { restore: keep }); } finally { hideBusy(); }
+            toast('Đã lưu');
+        }
+
+        window.addEventListener('beforeunload', e => { if (pdfDoc && isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+        // ====================================================================
+        //  In
+        // ====================================================================
         async function preparePrint() {
             if (!pdfDoc || printing) return;
+            if (editing) finishEdit();
             printing = true;
             if (printCleanup) printCleanup();
 
-            const doc = pdfDoc;
-            const overlay = document.getElementById('print-overlay');
-            const status = document.getElementById('print-status');
-            const printZone = document.getElementById('print-zone');
-            const urls = [];
-            const imgs = [];
-
-            overlay.classList.add('active');
+            const status = $('print-status'), printZone = $('print-zone');
+            const urls = [], imgs = [];
+            let doc = pdfDoc, tmpDoc = null;
+            showBusy('Đang chuẩn bị trang in...');
             printZone.textContent = '';
 
             const cleanup = () => {
                 printZone.textContent = '';
                 urls.forEach(u => URL.revokeObjectURL(u));
                 urls.length = 0;
+                if (tmpDoc) { try { tmpDoc.destroy(); } catch (e) {} tmpDoc = null; }
                 window.removeEventListener('afterprint', cleanup);
                 if (printCleanup === cleanup) printCleanup = null;
             };
 
             try {
+                if (isDirty()) {                       // in bản đã chỉnh sửa: dựng PDF mới (có chú thích + xoay trang) rồi in từ đó
+                    status.textContent = 'Đang áp dụng chỉnh sửa...';
+                    const bytes = await buildEditedPdf();
+                    tmpDoc = await pdfjsLib.getDocument(docOptions(bytes)).promise;
+                    doc = tmpDoc;
+                }
                 for (let i = 1; i <= doc.numPages; i++) {
-                    if (doc !== pdfDoc) throw new Error('Đã đổi sang file khác');
+                    if (!tmpDoc && doc !== pdfDoc) throw new Error('Đã đổi sang file khác');
                     status.textContent = `Đang vẽ bản in: ${i} / ${doc.numPages}`;
                     const page = await doc.getPage(i);
-                    const rot = (page.rotate + rotation) % 360;
+                    const rot = page.rotate;
                     let s = PRINT_SCALE;
                     const vp0 = page.getViewport({ scale: s, rotation: rot });
                     if (vp0.width * vp0.height > MAX_CANVAS_PIXELS) s *= Math.sqrt(MAX_CANVAS_PIXELS / (vp0.width * vp0.height));
@@ -923,7 +2183,6 @@
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     await page.render({ canvasContext: ctx, viewport: vp }).promise;
 
-                    // Chuyển sang ảnh nén rồi giải phóng canvas, tránh giữ hàng trăm canvas khổng lồ trong RAM
                     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
                     canvas.width = 0;
                     const url = URL.createObjectURL(blob);
@@ -939,37 +2198,58 @@
                 }
                 await Promise.all(imgs.map(img => img.decode().catch(() => {})));
             } catch (e) {
-                overlay.classList.remove('active');
+                hideBusy();
                 cleanup();
                 printing = false;
                 alert('Lỗi chuẩn bị bản in: ' + (e && e.message ? e.message : e));
                 return;
             }
 
-            overlay.classList.remove('active');
+            hideBusy();
             printCleanup = cleanup;
             window.addEventListener('afterprint', cleanup);
             printing = false;
             setTimeout(() => window.print(), 100);
         }
 
-        // ===== Phím tắt: Ctrl/Cmd + P =====
-        window.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p' && pdfDoc) {
-                e.preventDefault();
-                preparePrint();
+        // ====================================================================
+        //  Giao diện chung
+        // ====================================================================
+        function updateUI() {
+            const has = !!pdfDoc;
+            ['share-btn', 'zoom-btn', 'print-btn'].forEach(id => $(id).disabled = !has);
+            document.querySelectorAll('[data-toolbtn]').forEach(b => b.disabled = !has);
+            $('curr-page-input').disabled = !has;
+            $('undo-btn').disabled = !has || hi <= 0;
+            $('redo-btn').disabled = !has || hi >= hist.length - 1;
+            $('delete-btn').hidden = !sel;
+            $('save-split').hidden = !(has && isDirty());
+            $('open-btn').hidden = has;
+            $('sidebar-expand').hidden = !(has && sidebar.classList.contains('collapsed'));
+        }
+
+        // ===== Phím tắt =====
+        window.addEventListener('keydown', e => {
+            const mod = e.ctrlKey || e.metaKey, k = (e.key || '').toLowerCase();
+            const typing = e.target && (e.target.isContentEditable || /^(input|textarea|select)$/i.test(e.target.tagName));
+            if (mod && k === 'p' && pdfDoc) { e.preventDefault(); preparePrint(); return; }
+            if (mod && k === 's') { e.preventDefault(); if (pdfDoc && isDirty()) saveDoc('save'); return; }
+            if (typing) return;
+            if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+            if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+            if (mod && (k === '+' || k === '=')) { e.preventDefault(); zoomIn(); return; }
+            if (mod && k === '-') { e.preventDefault(); zoomOut(); return; }
+            if (mod && k === '0') { e.preventDefault(); setZoom(1); return; }
+            if ((k === 'delete' || k === 'backspace') && sel) { e.preventDefault(); deleteSelected(); return; }
+            if (k === 'escape') {
+                if (!$('info-sheet').hidden) closeInfo();
+                else if (sel) clearSel();
+                else if (tool) setTool(tool);
             }
         });
 
-        // ===== Chọn file =====
-        document.getElementById('file-input').onchange = e => {
-            const f = e.target.files[0];
-            if (f) loadFile(f);
-            e.target.value = '';   // cho phép chọn lại đúng file đó lần nữa
-        };
-
         // ===== Kéo resize sidebar (chuột + cảm ứng) =====
-        const handle = document.getElementById('resize-handle');
+        const handle = $('resize-handle');
         let isResizing = false;
         handle.addEventListener('pointerdown', e => {
             isResizing = true;
@@ -982,13 +2262,11 @@
             const x = e.clientX - sidebar.getBoundingClientRect().left;
             if (x > 100 && x < 500) sidebar.style.width = x + 'px';
         });
-        const stopResize = () => {
-            isResizing = false;
-            sidebar.classList.remove('resizing');
-            handle.classList.remove('active');
-        };
+        const stopResize = () => { isResizing = false; sidebar.classList.remove('resizing'); handle.classList.remove('active'); };
         handle.addEventListener('pointerup', stopResize);
         handle.addEventListener('pointercancel', stopResize);
+
+        updateUI();
     </script>
 </body>
 </html>

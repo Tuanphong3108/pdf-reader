@@ -1,5 +1,5 @@
 // Đổi số phiên bản mỗi khi muốn ép máy người dùng xoá cache cũ
-const CACHE_NAME = 'pdf-reader-v5';
+const CACHE_NAME = 'pdf-reader-v6';
 
 // File của app: bắt buộc phải có
 const CORE_ASSETS = [
@@ -10,10 +10,13 @@ const CORE_ASSETS = [
 ];
 
 // File từ CDN: cố gắng cache sẵn, lỗi cái nào bỏ qua cái đó (không làm hỏng việc cài SW)
-// Font Material Symbols (woff2) và cMap/standard_fonts sẽ được cache lúc chạy (runtime) ở bên dưới
+// Font Material Symbols (woff2), cMap/standard_fonts và font chữ Roboto/Noto Serif (dùng khi chèn văn bản) sẽ được cache lúc chạy (runtime) ở bên dưới
 const EXTERNAL_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+    // Thư viện ghi chỉnh sửa vào PDF (chỉ được tải khi lưu / in bản đã chỉnh sửa)
+    'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+    'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js',
     'https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@8..144,100..1000&display=swap',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200',
     'https://tuanphong3108.github.io/md3-loading/Loading_Indicator.gif'
