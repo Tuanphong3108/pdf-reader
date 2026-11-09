@@ -361,6 +361,20 @@
         }
         #empty-state .text-btn { margin-top: 18px; }
 
+        /* Màn hình lỗi (thay cho alert) */
+        #error-state {
+            position: absolute; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center; padding: 32px; z-index: 10;
+        }
+        #error-state .err-art { width: min(210px, 52vw); height: auto; margin-bottom: 36px; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+        #error-state h2 { font-size: 1.6rem; font-weight: 500; margin-bottom: 14px; }
+        #err-desc { max-width: 380px; font-size: 1rem; line-height: 1.5; opacity: 0.75; overflow-wrap: anywhere; }
+        #err-code {
+            max-width: 380px; margin-top: 12px; font: 12.5px/1.4 ui-monospace, 'Roboto Mono', Consolas, monospace;
+            opacity: 0.6; overflow-wrap: anywhere; cursor: text; user-select: text; -webkit-user-select: text;
+        }
+        .err-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 32px; }
+
         .toast {
             position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
             background: var(--md-sys-color-on-surface); color: var(--md-sys-color-surface); padding: 12px 20px; border-radius: 12px;
@@ -457,6 +471,17 @@
                 <p style="font-size: 12px; margin-top: 4px; opacity: 0.6;">Hỗ trợ mở file trực tiếp từ hệ thống (PWA)</p>
                 <button class="text-btn" onclick="openFile()"><span class="material-symbols-outlined">file_open</span>Mở tệp</button>
             </div>
+
+            <div id="error-state" role="alert" hidden>
+                <img class="err-art" src="error.png" alt="" draggable="false">
+                <h2 id="err-title">Không giải mã được</h2>
+                <p id="err-desc"></p>
+                <p id="err-code"></p>
+                <div class="err-actions">
+                    <button class="text-btn" onclick="reloadCurrent()">Tải lại</button>
+                    <button class="text-btn tonal" onclick="openFile()">Mở tệp mới</button>
+                </div>
+            </div>
         </main>
 
         <aside class="tool-panel" id="tool-panel"><div class="tool-panel-inner" id="tool-panel-inner"></div></aside>
@@ -509,10 +534,12 @@
         };
         const FONT_CDN = 'https://cdn.jsdelivr.net/npm/@expo-google-fonts/';
         // Font đầy đủ (có tiếng Việt) — dùng cả để hiển thị lẫn nhúng vào PDF nên chữ trên màn hình và trong file khớp nhau
+        // subset: có cắt font (chỉ giữ glyph dùng tới) khi nhúng vào PDF hay không.
+        // Noto Serif phải nhúng nguyên font vì thư viện cắt font bị mất ~80% glyph của font này (đã test cả 4 kiểu), nên file lưu to thêm ~0,5 MB cho mỗi kiểu dùng.
         const FONTS = {
-            roboto: { label: 'Roboto',      css: 'PDFR Roboto',      pkg: 'roboto@0.4.3',      file: 'Roboto',     generic: 'sans-serif' },
-            serif:  { label: 'Noto Serif',  css: 'PDFR Noto Serif',  pkg: 'noto-serif@0.4.2',  file: 'NotoSerif',  generic: 'serif' },
-            mono:   { label: 'Roboto Mono', css: 'PDFR Roboto Mono', pkg: 'roboto-mono@0.4.2', file: 'RobotoMono', generic: 'monospace' }
+            roboto: { label: 'Roboto',      css: 'PDFR Roboto',      pkg: 'roboto@0.4.3',      file: 'Roboto',     generic: 'sans-serif', subset: true },
+            serif:  { label: 'Noto Serif',  css: 'PDFR Noto Serif',  pkg: 'noto-serif@0.4.2',  file: 'NotoSerif',  generic: 'serif',      subset: false },
+            mono:   { label: 'Roboto Mono', css: 'PDFR Roboto Mono', pkg: 'roboto-mono@0.4.2', file: 'RobotoMono', generic: 'monospace',  subset: true }
         };
         const fontUrl = (key, bold, italic) => {
             const f = FONTS[key], st = (bold ? '700Bold' : '400Regular') + (italic ? '_Italic' : '');
@@ -734,10 +761,40 @@
 
         const docOptions = data => ({ data, cMapUrl: PDFJS_ASSETS + 'cmaps/', cMapPacked: true, standardFontDataUrl: PDFJS_ASSETS + 'standard_fonts/' });
 
+        // ----- Màn hình lỗi -----
+        let lastSource = null;              // {file, handle} của tệp vừa mở, để nút "Tải lại" đọc lại từ đầu
+        // Mã lỗi hiển thị: tên lỗi của pdf.js / trình duyệt (kèm mã số nếu có), ví dụ "InvalidPDFException", "PasswordException (1)"
+        function errorCode(e) {
+            if (!e) return 'UnknownError';
+            const name = (e.name && e.name !== 'Error') ? e.name : ((e.constructor && e.constructor.name) || 'Error');
+            return (e.code !== undefined && e.code !== null && e.code !== '') ? `${name} (${e.code})` : name;
+        }
+        function showError({ title, desc, code, message }) {
+            hideBusy();
+            $('err-title').textContent = title;
+            $('err-desc').textContent = desc;
+            $('err-code').textContent = 'Mã lỗi: ' + code;
+            $('err-code').title = message || '';
+            $('empty-state').style.display = 'none';
+            $('error-state').hidden = false;
+            updateUI();
+        }
+        function hideError() { $('error-state').hidden = true; }
+        async function reloadCurrent() {
+            if (!lastSource) { openFile(); return; }
+            try {
+                const file = lastSource.handle ? await lastSource.handle.getFile() : lastSource.file;
+                loadFile(file, lastSource.handle);
+            } catch (e) {
+                showError({ title: 'Không mở được', desc: `Không thể đọc “${lastSource.file ? lastSource.file.name : 'tệp'}”.`, code: errorCode(e), message: e && e.message });
+            }
+        }
+
         async function loadPDF(data, name, opts = {}) {
             const token = ++docToken;
             let cancelledByUser = false, loadingTask = null;
             try {
+                hideError();
                 teardownDocument();
                 docEncrypted = false;
                 viewer.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -785,9 +842,14 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 }
             } catch (e) {
                 if (token !== docToken) return;
-                if (!cancelledByUser) alert('Lỗi tải PDF: ' + (e && e.message ? e.message : e));
+                console.error('Lỗi tải PDF:', e);
+                // Người dùng bấm Huỷ ở hộp nhập mật khẩu thì coi như lỗi mật khẩu (PasswordException, mã 1 = cần mật khẩu)
+                const err = cancelledByUser ? { name: 'PasswordException', code: 1, message: 'Chưa nhập mật khẩu' } : e;
                 teardownDocument();
                 resetToDefaultState();
+                document.title = name;
+                $('app-title').textContent = name;
+                showError({ title: 'Không giải mã được', desc: `Không thể giải mã “${name}”`, code: errorCode(err), message: err && err.message });
             }
         }
 
@@ -803,10 +865,20 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
 
         function loadFile(file, handle = null) {
             if (!file) return;
-            if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { alert('Đây không phải file PDF.'); return; }
+            lastSource = { file, handle };
+            if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+                // đang mở tài liệu khác thì giữ nguyên tài liệu đó (tránh mất chỉnh sửa), chỉ báo nhẹ
+                if (pdfDoc) { toast(`“${file.name}” không phải là tệp PDF.`); return; }
+                document.title = file.name;
+                $('app-title').textContent = file.name;
+                showError({ title: 'Không mở được', desc: `“${file.name}” không phải là tệp PDF.`, code: 'NotPDFError', message: 'Loại tệp: ' + (file.type || 'không rõ') });
+                return;
+            }
             if (pdfDoc && isDirty() && !confirm('Bạn có thay đổi chưa lưu. Vẫn mở tệp khác?')) return;
             fileInfo = { name: file.name, size: file.size, lastModified: file.lastModified, handle };
-            file.arrayBuffer().then(buf => loadPDF(new Uint8Array(buf), file.name));
+            file.arrayBuffer()
+                .then(buf => loadPDF(new Uint8Array(buf), file.name))
+                .catch(e => showError({ title: 'Không mở được', desc: `Không thể đọc “${file.name}”.`, code: errorCode(e), message: e && e.message }));
         }
 
         async function openFile() {
@@ -2108,7 +2180,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             const fonts = new Map(), images = new Map();
             const getFont = (key, bold, italic) => {
                 const k = `${key}|${+bold}|${+italic}`;
-                if (!fonts.has(k)) fonts.set(k, fetchFontBytes(key, bold, italic).then(b => doc.embedFont(b, { subset: true })));
+                if (!fonts.has(k)) fonts.set(k, fetchFontBytes(key, bold, italic).then(b => doc.embedFont(b, { subset: FONTS[key].subset })));
                 return fonts.get(k);
             };
 
@@ -2282,7 +2354,8 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 hideBusy();
                 cleanup();
                 printing = false;
-                alert('Lỗi chuẩn bị bản in: ' + (e && e.message ? e.message : e));
+                console.error(e);
+                toast('Lỗi chuẩn bị bản in: ' + (e && e.message ? e.message : e));
                 return;
             }
 
