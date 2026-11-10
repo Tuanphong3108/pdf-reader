@@ -276,12 +276,29 @@
         .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px 8px; justify-items: center; }
         .swatch { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(128,128,128,0.45); cursor: pointer; padding: 0; }
         .swatch.active { outline: 3px solid var(--md-sys-color-primary); outline-offset: 2px; }
-        .tabs { display: flex; background: var(--md-sys-color-surface-container-high); border-radius: 100px; padding: 3px; margin-bottom: 16px; }
-        .tab { flex: 1; height: 36px; border: none; background: transparent; border-radius: 100px; cursor: pointer; font-weight: 600; font-size: 13px; }
-        .tab.active { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
-        .custom-color { display: flex; gap: 12px; align-items: center; }
-        .custom-color input[type="color"] { width: 64px; height: 44px; border: none; background: transparent; padding: 0; cursor: pointer; }
-        .custom-color code { font-size: 14px; opacity: 0.8; }
+        .seg-tabs { display: flex; border: 1px solid var(--md-sys-color-outline); border-radius: 100px; overflow: hidden; margin-bottom: 16px; }
+        .seg-tab { flex: 1; height: 40px; border: none; background: transparent; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .seg-tab + .seg-tab { border-left: 1px solid var(--md-sys-color-outline); }
+        .seg-tab:hover { background: rgba(150,150,150,0.12); }
+        .seg-tab.active { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+        .seg-tab .material-symbols-outlined { font-size: 20px; }
+        .cp { display: flex; flex-direction: column; gap: 20px; user-select: none; -webkit-user-select: none; }
+        .cp-sv { position: relative; width: 100%; height: 240px; border-radius: 16px; touch-action: none; cursor: crosshair; flex-shrink: 0; }
+        .cp-sv::before, .cp-sv::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+        .cp-sv::before { background: linear-gradient(to right, #fff, rgba(255,255,255,0)); }
+        .cp-sv::after { background: linear-gradient(to top, #000, rgba(0,0,0,0)); }
+        .cp-hue { position: relative; height: 28px; margin: 0 4px; border-radius: 100px; touch-action: none; cursor: pointer; flex-shrink: 0;
+            background: linear-gradient(to right, #f00 0%, #ff0 16.67%, #0f0 33.33%, #0ff 50%, #00f 66.67%, #f0f 83.33%, #f00 100%); }
+        .cp-thumb { position: absolute; width: 28px; height: 28px; border-radius: 50%; transform: translate(-50%, -50%); border: 3px solid #fff; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; z-index: 2; }
+        .cp-hue .cp-thumb { top: 50%; width: 32px; height: 32px; }
+        .cp-row { display: flex; gap: 12px; align-items: center; }
+        .cp-field { position: relative; flex: 1; min-width: 0; height: 56px; border: 1px solid var(--md-sys-color-outline); border-radius: 16px; display: flex; align-items: center; }
+        .cp-field:focus-within { border: 2px solid var(--md-sys-color-primary); }
+        .cp-field.invalid, .cp-field.invalid:focus-within { border-color: var(--md-sys-color-error); }
+        .cp-field label { position: absolute; left: 12px; top: -9px; padding: 0 4px; font-size: 12px; background: var(--cp-bg, var(--md-sys-color-surface)); opacity: 0.85; }
+        .cp-field input { width: 100%; height: 100%; border: none; background: transparent; outline: none; padding: 0 16px; font: inherit; font-size: 16px; color: inherit; text-transform: uppercase; }
+        .cp-eye { width: 64px; height: 56px; border: none; border-radius: 16px; cursor: pointer; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .cp-eye:hover { filter: brightness(1.08); }
         .size-row { display: flex; justify-content: space-between; }
         .size-btn { width: 44px; height: 44px; border: none; border-radius: 12px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .size-btn:hover { background: rgba(150,150,150,0.14); }
@@ -1785,6 +1802,65 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             else if (mode === 'sign') buildSignPanel(inner);
         }
 
+        // ----- Bộ chọn màu tuỳ chỉnh (kiểu ChromeOS): ô sáng/đậm + thanh sắc độ + mã hex + ống nhỏ giọt -----
+        function hexToHsv(hex) {
+            const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return null;
+            const n = parseInt(m[1], 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+            const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+            let h = 0;
+            if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+            return { h: h * 60, s: mx ? d / mx : 0, v: mx };
+        }
+        function hsvToHex(h, s, v) {
+            const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+            return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+        }
+        function colorPicker(current, onChange) {
+            let { h, s, v } = hexToHsv(current) || { h: 0, s: 0, v: 0 };
+            const sv = el('div', { class: 'cp-sv' }), svThumb = el('div', { class: 'cp-thumb' }); sv.append(svThumb);
+            const hue = el('div', { class: 'cp-hue' }), hueThumb = el('div', { class: 'cp-thumb' }); hue.append(hueThumb);
+            const inp = el('input', { type: 'text', value: current.toUpperCase(), maxlength: 7, spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Mã màu hệ lục phân' });
+            const field = el('div', { class: 'cp-field' }, el('label', { text: 'Hệ lục phân' }), inp);
+            const eye = el('button', { class: 'cp-eye', title: 'Chọn màu từ màn hình', 'aria-label': 'Chọn màu từ màn hình' }, icon('colorize'));
+            function paint(skipInput) {
+                const hex = hsvToHex(h, s, v), hx = hsvToHex(h, 1, 1);
+                sv.style.backgroundColor = hx;
+                svThumb.style.left = (s * 100) + '%'; svThumb.style.top = ((1 - v) * 100) + '%'; svThumb.style.background = hex;
+                hueThumb.style.left = (h / 360 * 100) + '%'; hueThumb.style.background = hx;
+                if (!skipInput) { inp.value = hex.toUpperCase(); field.classList.remove('invalid'); }
+                return hex;
+            }
+            const drag = (node, fn) => {
+                node.addEventListener('pointerdown', e => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+                    e.preventDefault(); node.setPointerCapture(e.pointerId); fn(e);
+                    const mv = ev => fn(ev), up = () => { node.removeEventListener('pointermove', mv); node.removeEventListener('pointerup', up); node.removeEventListener('pointercancel', up); };
+                    node.addEventListener('pointermove', mv); node.addEventListener('pointerup', up); node.addEventListener('pointercancel', up);
+                });
+            };
+            const clamp = x => Math.min(1, Math.max(0, x));
+            drag(sv, e => { const r = sv.getBoundingClientRect(); s = clamp((e.clientX - r.left) / r.width); v = 1 - clamp((e.clientY - r.top) / r.height); onChange(paint()); });
+            drag(hue, e => { const r = hue.getBoundingClientRect(); h = clamp((e.clientX - r.left) / r.width) * 359.99; onChange(paint()); });
+            inp.addEventListener('input', () => {
+                let t = inp.value.trim(); if (t && t[0] !== '#') t = '#' + t;
+                const c = hexToHsv(t);
+                field.classList.toggle('invalid', !c);
+                if (!c) return;
+                ({ h: h, s: s, v: v } = Object.assign({ h }, c, c.s === 0 || c.v === 0 ? { h } : {}));
+                onChange(paint(true));
+            });
+            inp.addEventListener('blur', () => paint());
+            eye.addEventListener('click', async () => {
+                if (!window.EyeDropper) { toast('Trình duyệt này chưa hỗ trợ ống nhỏ giọt'); return; }
+                try {
+                    const r = await new EyeDropper().open(), c = hexToHsv(r.sRGBHex);
+                    if (c) { ({ s, v } = c); if (c.s > 0 && c.v > 0) h = c.h; onChange(paint()); }
+                } catch (_) {}
+            });
+            paint();
+            return el('div', { class: 'cp' }, sv, hue, el('div', { class: 'cp-row' }, field, eye));
+        }
+
         function colorGrid(current, onPick) {
             const g = el('div', { class: 'palette' });
             PALETTE.forEach(c => g.append(el('button', { class: 'swatch' + (c.toLowerCase() === (current || '').toLowerCase() ? ' active' : ''), style: `background:${c}`, 'aria-label': c, title: c, onclick: () => onPick(c) })));
@@ -1849,17 +1925,10 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 sizes.append(el('button', { class: 'size-btn' + (cfg.size === i ? ' active' : ''), 'aria-label': 'Kích thước ' + (i + 1), onclick: () => { cfg.size = i; renderPanel(); } }, svg));
             });
             inner.append(el('div', { class: 'panel-label', text: 'Kích thước' }), sizes);
-            const tabs = el('div', { class: 'tabs' },
-                el('button', { class: 'tab' + (inkCfg.tab === 'palette' ? ' active' : ''), text: 'Bảng màu', onclick: () => { inkCfg.tab = 'palette'; renderPanel(); } }),
-                el('button', { class: 'tab' + (inkCfg.tab === 'custom' ? ' active' : ''), text: 'Tuỳ chỉnh', onclick: () => { inkCfg.tab = 'custom'; renderPanel(); } }));
-            inner.append(el('div', { class: 'panel-label', style: 'margin-top:20px' }), tabs);
+            const tab = (id, label) => el('button', { class: 'seg-tab' + (inkCfg.tab === id ? ' active' : ''), onclick: () => { inkCfg.tab = id; renderPanel(); } }, inkCfg.tab === id ? icon('check') : null, label);
+            inner.append(el('div', { class: 'panel-label', style: 'margin-top:20px' }), el('div', { class: 'seg-tabs' }, tab('palette', 'Bảng màu'), tab('custom', 'Tuỳ chỉnh')));
             if (inkCfg.tab === 'palette') inner.append(colorGrid(cfg.color, c => { cfg.color = c; renderPanel(); }));
-            else {
-                const code = el('code', { text: cfg.color.toUpperCase() });
-                const inp = el('input', { type: 'color', value: cfg.color, 'aria-label': 'Chọn màu' });
-                inp.addEventListener('input', () => { cfg.color = inp.value; code.textContent = inp.value.toUpperCase(); });
-                inner.append(el('div', { class: 'custom-color' }, inp, code));
-            }
+            else inner.append(colorPicker(cfg.color, c => { cfg.color = c; }));
         }
 
         function saveSigs() { try { localStorage.setItem(SIG_KEY, JSON.stringify(sigs)); } catch (e) {} }
