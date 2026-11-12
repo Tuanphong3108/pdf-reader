@@ -157,6 +157,10 @@
         .textLayer[data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
 
         /* ===== Lớp chú thích (chữ, nét vẽ, chữ ký) — toạ độ theo đơn vị trang PDF, được scale/xoay bằng CSS transform ===== */
+        /* ===== Liên kết bấm được (link trong PDF + URL/email tự nhận diện trong chữ) ===== */
+        .linkLayer { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+        .linkLayer a { position: absolute; display: block; pointer-events: auto; cursor: pointer; border-radius: 2px; text-decoration: none; transition: background-color 0.15s; }
+        .linkLayer a:hover, .linkLayer a:focus-visible { background: color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent); box-shadow: inset 0 -2px 0 var(--md-sys-color-primary); outline: none; }
         .annLayer { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 3; pointer-events: none; user-select: none; -webkit-user-select: none; }
         .annLayer svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
         #pages-container[data-tool="text"] .annLayer,
@@ -1030,7 +1034,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             const t = renderTasks.get(num);
             if (t) { t.cancel(); renderTasks.delete(num); }
         }
-        const stripLayers = wrapper => wrapper.querySelectorAll(':scope > canvas, :scope > .textLayer').forEach(n => { if (n.tagName === 'CANVAS') n.width = 0; n.remove(); });
+        const stripLayers = wrapper => wrapper.querySelectorAll(':scope > canvas, :scope > .textLayer, :scope > .linkLayer').forEach(n => { if (n.tagName === 'CANVAS') n.width = 0; n.remove(); });
 
         async function renderPage(num, wrapper) {
             const doc = pdfDoc;
@@ -1098,6 +1102,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 wrapper.insertBefore(newCanvas, wrapper.firstChild);
                 addEndOfContent(newText);
                 wrapper.insertBefore(newText, wrapper._ann || null);
+                buildLinks(num, wrapper, newText, page, vp, stale);
 
                 wrapper.dataset.rendered = 'true';
                 wrapper._key = key;
@@ -1110,6 +1115,99 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 if (t && t.gen === gen) renderTasks.delete(num);
                 if (newCanvas && !newCanvas.isConnected) newCanvas.width = 0;
             }
+        }
+
+        // ----- Liên kết: link có sẵn trong PDF + tự nhận diện URL / email trong chữ -----
+        const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"'`\u201C\u201D]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/gi;
+        function safeHref(u) {
+            if (!u) return null;
+            u = String(u).trim();
+            if (/^www\./i.test(u)) u = 'https://' + u;
+            else if (/^[^\s@\/:]+@[^\s@\/:]+\.[a-z]{2,}$/i.test(u)) u = 'mailto:' + u;
+            return /^(https?:|mailto:|tel:)/i.test(u) ? u : null;
+        }
+        async function goToDest(dest) {
+            try {
+                const d = typeof dest === 'string' ? await pdfDoc.getDestination(dest) : dest;
+                if (!d || !d.length) return;
+                const idx = typeof d[0] === 'object' ? await pdfDoc.getPageIndex(d[0]) : d[0];
+                if (Number.isInteger(idx)) goToPage(idx + 1);
+            } catch (e) {}
+        }
+        function mkLink(box, href, dest, title) {
+            const a = document.createElement('a');
+            a.style.cssText = `left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px`;
+            if (href) { a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = title || href; }
+            else { a.href = '#'; a.title = 'Đi tới trang liên kết'; a.addEventListener('click', e => { e.preventDefault(); goToDest(dest); }); }
+            a.addEventListener('dragstart', e => e.preventDefault());
+            return a;
+        }
+        async function buildLinks(num, wrapper, textLayer, page, vp, stale) {
+            const layer = document.createElement('div');
+            layer.className = 'linkLayer';
+            const boxes = [];
+            // 1) Link annotation có sẵn trong PDF
+            try {
+                const anns = await page.getAnnotations({ intent: 'display' });
+                if (stale()) return;
+                for (const a of anns) {
+                    if (a.subtype !== 'Link' || !a.rect) continue;
+                    const href = safeHref(a.url || a.unsafeUrl);
+                    if (!href && !a.dest) continue;
+                    const r = vp.convertToViewportRectangle(a.rect);
+                    const box = { x: Math.min(r[0], r[2]), y: Math.min(r[1], r[3]), w: Math.abs(r[2] - r[0]), h: Math.abs(r[3] - r[1]) };
+                    if (box.w < 2 || box.h < 2) continue;
+                    boxes.push(box);
+                    layer.append(mkLink(box, href, a.dest));
+                }
+            } catch (e) {}
+            if (stale()) return;
+            // 2) Tự nhận diện URL / email trong chữ (gộp các span cùng một dòng)
+            try {
+                const wr = wrapper.getBoundingClientRect();
+                const spans = [...textLayer.querySelectorAll('span')].filter(sp => !sp.classList.contains('markedContent') && sp.firstChild && sp.firstChild.nodeType === 3 && sp.textContent);
+                const lines = [];
+                for (const sp of spans) {
+                    const r = sp.getBoundingClientRect();
+                    const L = lines[lines.length - 1];
+                    if (L && Math.abs(r.top - L.top) < Math.max(2, r.height * 0.5)) L.items.push({ sp, r });
+                    else lines.push({ top: r.top, items: [{ sp, r }] });
+                }
+                const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+                for (const L of lines) {
+                    let full = '', map = [];
+                    L.items.forEach((it, i) => { const t = it.sp.textContent; map.push([full.length, full.length + t.length, i]); full += t; });
+                    URL_RE.lastIndex = 0;
+                    let m;
+                    while ((m = URL_RE.exec(full))) {
+                        let txt = m[0];
+                        // bỏ dấu câu cuối, và ngoặc đóng không có ngoặc mở
+                        for (;;) {
+                            const c = txt[txt.length - 1];
+                            if (/[.,;:!?'"\u2019\u201D\]}>]/.test(c) || (c === ')' && txt.split(')').length > txt.split('(').length)) txt = txt.slice(0, -1); else break;
+                        }
+                        if (txt.length < 4) continue;
+                        const href = safeHref(txt);
+                        if (!href) continue;
+                        const a0 = m.index, a1 = m.index + txt.length;
+                        for (const [s0, s1, i] of map) {
+                            const lo = Math.max(a0, s0), hi = Math.min(a1, s1);
+                            if (lo >= hi) continue;
+                            const node = L.items[i].sp.firstChild, rg = document.createRange();
+                            rg.setStart(node, lo - s0); rg.setEnd(node, hi - s0);
+                            let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+                            for (const r of rg.getClientRects()) { x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom); }
+                            if (x1 <= x0 || y1 <= y0) continue;
+                            const box = { x: x0 - wr.left, y: y0 - wr.top, w: x1 - x0, h: y1 - y0 };
+                            if (boxes.some(b => overlap(b, box) > box.w * box.h * 0.5)) continue;
+                            layer.append(mkLink(box, href, null, href));
+                        }
+                    }
+                }
+            } catch (e) { console.warn('Nhận diện liên kết lỗi:', e); }
+            if (stale() || !layer.childNodes.length) return;
+            wrapper.querySelectorAll(':scope > .linkLayer').forEach(n => n.remove());
+            wrapper.insertBefore(layer, wrapper._ann || null);
         }
 
         function unrenderPage(num, wrapper) {
