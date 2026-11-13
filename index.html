@@ -244,6 +244,7 @@
         }
         @keyframes menu-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
         .menu-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 40px; padding: 0 16px; border: none; background: transparent; cursor: pointer; font-size: 14px; text-align: left; }
+        .menu-item > span:not(.material-symbols-outlined):not(.menu-kbd) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .menu-item:hover:not(:disabled) { background: rgba(150,150,150,0.16); }
         .menu-item:disabled { opacity: 0.4; cursor: default; }
         .menu-item .material-symbols-outlined { font-size: 20px; opacity: 0.8; }
@@ -745,11 +746,12 @@
                 m.append(b);
             });
             document.body.append(m);
-            const r = anchor.getBoundingClientRect(), mr = m.getBoundingClientRect();
+            const pt = opts.point, gap = pt ? 0 : 4;
+            const r = pt ? { left: pt.x, right: pt.x, top: pt.y, bottom: pt.y } : anchor.getBoundingClientRect(), mr = m.getBoundingClientRect();
             let left = opts.alignRight ? r.right - mr.width : r.left;
             left = clamp(left, 8, Math.max(8, innerWidth - mr.width - 8));
-            let top = r.bottom + 4;
-            if (top + mr.height > innerHeight - 8) top = Math.max(8, r.top - mr.height - 4);
+            let top = r.bottom + gap;
+            if (top + mr.height > innerHeight - 8) top = Math.max(8, r.top - mr.height - gap);
             m.style.left = left + 'px'; m.style.top = top + 'px';
             menuEl = m; menuAnchor = anchor;
             document.addEventListener('pointerdown', menuOutside, true);
@@ -1209,6 +1211,153 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             wrapper.querySelectorAll(':scope > .linkLayer').forEach(n => n.remove());
             wrapper.insertBefore(layer, wrapper._ann || null);
         }
+
+        // ====================================================================
+        //  Sao chép chữ theo cấu trúc tài liệu + menu chuột phải tuỳ chỉnh
+        // ====================================================================
+        // Lấy chữ đang được bôi đen trong các trang PDF, ngắt dòng / đoạn theo vị trí thật trên trang.
+        // Trả về null nếu vùng chọn không nằm trong trang PDF (để trình duyệt tự xử lý).
+        function selectionText() {
+            const sel = getSelection();
+            if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+            const range = sel.getRangeAt(0);
+            const inLayer = n => { const e = n && (n.nodeType === 1 ? n : n.parentElement); return !!(e && e.closest && e.closest('.textLayer')); };
+            if (!inLayer(range.startContainer) && !inLayer(range.endContainer) && !(range.commonAncestorContainer === pagesContainer || pagesContainer.contains(range.commonAncestorContainer))) return null;
+
+            const coords = (r, rot) => rot === 90 ? { a0: r.top, a1: r.bottom, c0: -r.right, c1: -r.left }
+                : rot === 180 ? { a0: -r.right, a1: -r.left, c0: -r.bottom, c1: -r.top }
+                : rot === 270 ? { a0: -r.bottom, a1: -r.top, c0: r.left, c1: r.right }
+                : { a0: r.left, a1: r.right, c0: r.top, c1: r.bottom };
+            const pages = [];
+            for (const layer of pagesContainer.querySelectorAll('.textLayer')) {
+                if (!range.intersectsNode(layer)) continue;
+                const rot = parseInt(layer.dataset.mainRotation) || 0;
+                const lines = [];
+                for (const span of layer.querySelectorAll('span:not(.markedContent)')) {
+                    const node = span.firstChild;
+                    if (!node || node.nodeType !== 3 || !range.intersectsNode(span)) continue;
+                    const len = node.length;
+                    let a = 0, b = len;
+                    if (range.startContainer === node) a = range.startOffset; else if (range.startContainer === span) a = range.startOffset > 0 ? len : 0;
+                    if (range.endContainer === node) b = range.endOffset; else if (range.endContainer === span) b = range.endOffset > 0 ? len : 0;
+                    if (a >= b) continue;
+                    const text = node.data.slice(a, b).replace(/ /g, ' ');
+                    if (!text) continue;
+                    let rect;
+                    if (a === 0 && b === len) rect = span.getBoundingClientRect();
+                    else { const rg = document.createRange(); rg.setStart(node, a); rg.setEnd(node, b); rect = rg.getBoundingClientRect(); }
+                    const c = coords(rect, rot); c.h = Math.max(c.c1 - c.c0, 1); c.cc = (c.c0 + c.c1) / 2; c.text = text;
+                    const L = lines[lines.length - 1];
+                    const ov = L ? Math.min(c.c1, L.c1) - Math.max(c.c0, L.c0) : 0;
+                    if (L && ov > 0.4 * Math.min(c.h, L.h)) {
+                        const gap = c.a0 - L.a1;
+                        if (gap > 0.25 * c.h && !/\s$/.test(L.text) && !/^\s/.test(text)) L.text += ' ';
+                        L.text += text; L.a1 = Math.max(L.a1, c.a1); L.c0 = Math.min(L.c0, c.c0); L.c1 = Math.max(L.c1, c.c1); L.h = Math.max(L.h, c.h);
+                    } else lines.push({ text, a0: c.a0, a1: c.a1, c0: c.c0, c1: c.c1, h: c.h, cc: c.cc });
+                }
+                let out = '';
+                lines.forEach((L, i) => {
+                    if (i) { const P = lines[i - 1]; out += Math.abs(L.cc - P.cc) > 1.6 * Math.max(L.h, P.h) ? '\n\n' : '\n'; }
+                    out += L.text.replace(/[ \t]+$/g, '');
+                });
+                if (out.trim()) pages.push(out);
+            }
+            return pages.join('\n\n');
+        }
+        document.addEventListener('copy', e => {
+            const a = document.activeElement;
+            if (a && (a.isContentEditable || /^(INPUT|TEXTAREA)$/.test(a.tagName))) return;
+            const t = selectionText();
+            if (!t) return;
+            e.clipboardData.setData('text/plain', t);
+            e.preventDefault();
+        });
+        async function copyText(t, okMsg) {
+            try { await navigator.clipboard.writeText(t); }
+            catch (_) {
+                const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0';
+                document.body.append(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove();
+            }
+            toast(okMsg || 'Đã sao chép');
+        }
+        function selectPageText(layer) {
+            const r = document.createRange(); r.selectNodeContents(layer);
+            const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+        }
+
+        document.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            if (e.target.closest && e.target.closest('.menu')) return;
+            closeMenu();
+            const t = e.target, point = { x: e.clientX, y: e.clientY }, items = [];
+            const anchor = { contains: () => false };
+
+            // Ô nhập liệu / văn bản đang soạn: cắt, chép, dán
+            const field = t.closest && t.closest('input, textarea, [contenteditable]');
+            if (field) {
+                const hasSel = field.isContentEditable ? !getSelection().isCollapsed : field.selectionStart !== field.selectionEnd;
+                const ro = field.readOnly || field.disabled;
+                items.push(
+                    { label: 'Cắt', icon: 'content_cut', kbd: 'Ctrl X', disabled: !hasSel || ro, onClick: () => { field.focus(); document.execCommand('cut'); } },
+                    { label: 'Sao chép', icon: 'content_copy', kbd: 'Ctrl C', disabled: !hasSel, onClick: () => { field.focus(); document.execCommand('copy'); } },
+                    { label: 'Dán', icon: 'content_paste', kbd: 'Ctrl V', disabled: ro, onClick: async () => {
+                        try { const tx = await navigator.clipboard.readText(); field.focus(); document.execCommand('insertText', false, tx); }
+                        catch (_) { toast('Hãy dùng Ctrl+V để dán'); }
+                    } },
+                    { divider: true },
+                    { label: 'Chọn tất cả', icon: 'select_all', kbd: 'Ctrl A', onClick: () => { field.focus(); document.execCommand('selectAll'); } }
+                );
+                openMenu(anchor, items, { point });
+                return;
+            }
+
+            // Liên kết
+            const link = t.closest && t.closest('.linkLayer a');
+            if (link) {
+                const href = link.getAttribute('href');
+                if (href && href !== '#') {
+                    const mail = /^mailto:/i.test(href);
+                    items.push(
+                        { label: mail ? 'Soạn email' : 'Mở liên kết trong thẻ mới', icon: mail ? 'mail' : 'open_in_new', onClick: () => window.open(href, '_blank', 'noopener,noreferrer') },
+                        { label: mail ? 'Sao chép địa chỉ email' : 'Sao chép địa chỉ liên kết', icon: 'link', onClick: () => copyText(href.replace(/^mailto:/i, ''), 'Đã sao chép liên kết') }
+                    );
+                } else items.push({ label: 'Đi tới trang liên kết', icon: 'arrow_forward', onClick: () => link.click() });
+                items.push({ divider: true });
+            }
+
+            // Chữ đang chọn / chữ trong trang
+            const layer = t.closest && t.closest('.textLayer') || (t.closest && t.closest('[data-page-number]') && t.closest('[data-page-number]').querySelector('.textLayer'));
+            const selTxt = selectionText();
+            if (selTxt) {
+                const short = selTxt.replace(/\s+/g, ' ').trim();
+                items.push(
+                    { label: 'Sao chép', icon: 'content_copy', kbd: 'Ctrl C', onClick: () => copyText(selTxt) },
+                    { label: 'Tìm trên Google “' + (short.length > 24 ? short.slice(0, 24) + '…' : short) + '”', icon: 'search', onClick: () => window.open('https://www.google.com/search?q=' + encodeURIComponent(short.slice(0, 300)), '_blank', 'noopener,noreferrer') }
+                );
+            }
+            if (layer) items.push({ label: 'Chọn tất cả chữ trong trang', icon: 'select_all', onClick: () => selectPageText(layer) });
+            if (items.length && !items[items.length - 1].divider) items.push({ divider: true });
+
+            if (pdfDoc) {
+                const wr = t.closest && t.closest('[data-page-number]');
+                const pn = wr ? +wr.dataset.pageNumber : 0;
+                items.push(
+                    { label: 'Hoàn tác', icon: 'undo', kbd: 'Ctrl Z', disabled: hi <= 0, onClick: undo },
+                    { label: 'Làm lại', icon: 'redo', kbd: 'Ctrl Y', disabled: hi >= hist.length - 1, onClick: redo },
+                    { divider: true },
+                    { label: 'Phóng to', icon: 'zoom_in', kbd: 'Ctrl +', onClick: () => setZoom(relZoom() * 1.25) },
+                    { label: 'Thu nhỏ', icon: 'zoom_out', kbd: 'Ctrl -', onClick: () => setZoom(relZoom() / 1.25) },
+                    { label: 'Xoay trang', icon: 'rotate_left', disabled: !pn, onClick: () => rotatePage(pn) },
+                    { divider: true },
+                    { label: 'In', icon: 'print', kbd: 'Ctrl P', onClick: preparePrint },
+                    { label: 'Lưu', icon: 'save', kbd: 'Ctrl S', disabled: !isDirty(), onClick: () => saveDoc('save') },
+                    { label: 'Thông tin', icon: 'info', onClick: openInfo }
+                );
+            } else items.push({ label: 'Mở tệp…', icon: 'file_open', onClick: openFile });
+            openMenu(anchor, items, { point });
+        }, true);
+        viewer.addEventListener('scroll', () => closeMenu(), { passive: true });
+        window.addEventListener('blur', () => closeMenu());
 
         function unrenderPage(num, wrapper) {
             if (editing && editing.n === num) finishEdit();
