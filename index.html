@@ -16,6 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
+    <script src="i18n.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <style>
@@ -43,7 +44,7 @@
 
         /* Dark theme - tự động theo hệ thống */
         @media (prefers-color-scheme: dark) {
-            :root {
+            :root:not([data-theme="light"]) {
                 --md-sys-color-background: #12131A;
                 --md-sys-color-on-background: #E4E1E9;
                 --md-sys-color-surface: #1A1B23;
@@ -60,6 +61,23 @@
                 --md-sys-color-error: #FFB4AB;
                 --loader-filter: brightness(0) invert(80%) sepia(10%) saturate(2000%) hue-rotate(210deg) brightness(100%) contrast(100%);
             }
+        }
+        :root[data-theme="dark"] {
+            --md-sys-color-background: #12131A;
+            --md-sys-color-on-background: #E4E1E9;
+            --md-sys-color-surface: #1A1B23;
+            --md-sys-color-surface-container: #1E1F25;
+            --md-sys-color-surface-container-high: #282930;
+            --md-sys-color-on-surface: #E4E1E9;
+            --md-sys-color-primary: #BEC2FF;
+            --md-sys-color-on-primary: #262778;
+            --md-sys-color-primary-container: #3D3E8F;
+            --md-sys-color-on-primary-container: #E0E0FF;
+            --md-sys-color-outline: #918F9A;
+            --md-sys-color-surface-variant: #46464F;
+            --md-sys-color-outline-variant: #46464F;
+            --md-sys-color-error: #FFB4AB;
+            --loader-filter: brightness(0) invert(80%) sepia(10%) saturate(2000%) hue-rotate(210deg) brightness(100%) contrast(100%);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -495,7 +513,7 @@
             </div>
 
             <div id="error-state" role="alert" hidden>
-                <picture><source srcset="error-dark.png" media="(prefers-color-scheme: dark)"><img class="err-art" src="error.png" alt="" draggable="false"></picture>
+                <picture><source srcset="error-dark.png" data-dark media="(prefers-color-scheme: dark)"><img class="err-art" src="error.png" alt="" draggable="false"></picture>
                 <h2 id="err-title">Không giải mã được</h2>
                 <p id="err-desc"></p>
                 <p id="err-code"></p>
@@ -631,6 +649,7 @@
         function fmtDate(d) {
             if (!d || isNaN(+d)) return '—';
             d = new Date(d);
+            if (I18N.lang === 'en') return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
             return `${d.getDate()} thg ${d.getMonth() + 1}, ${d.getFullYear()} lúc ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
         }
         // "D:20260929210100+07'00'" -> Date
@@ -796,7 +815,7 @@
             hideBusy();
             $('err-title').textContent = title;
             $('err-desc').textContent = desc;
-            $('err-code').textContent = 'Mã lỗi: ' + code;
+            $('err-code').textContent = t('Mã lỗi: ') + code;
             $('err-code').title = message || '';
             $('empty-state').style.display = 'none';
             $('error-state').hidden = false;
@@ -809,7 +828,7 @@
                 const file = lastSource.handle ? await lastSource.handle.getFile() : lastSource.file;
                 loadFile(file, lastSource.handle);
             } catch (e) {
-                showError({ title: 'Không mở được', desc: `Không thể đọc “${lastSource.file ? lastSource.file.name : 'tệp'}”.`, code: errorCode(e), message: e && e.message });
+                showError({ title: t('Không mở được'), desc: t('Không thể đọc “{name}”.', { name: lastSource.file ? lastSource.file.name : t('tệp') }), code: errorCode(e), message: e && e.message });
             }
         }
 
@@ -827,7 +846,7 @@
                 loadingTask = pdfjsLib.getDocument(docOptions(data));
                 loadingTask.onPassword = (updatePassword, reason) => {
                     docEncrypted = true;
-                    const msg = reason === 2 ? 'Mật khẩu sai, nhập lại:' : 'File này có mật khẩu, nhập vào:';
+                    const msg = reason === 2 ? t('Mật khẩu sai, nhập lại:') : t('File này có mật khẩu, nhập vào:');
                     const pw = window.prompt(msg);
                     if (pw === null) { cancelledByUser = true; loadingTask.destroy(); }
                     else updatePassword(pw);
@@ -867,12 +886,12 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 if (token !== docToken) return;
                 console.error('Lỗi tải PDF:', e);
                 // Người dùng bấm Huỷ ở hộp nhập mật khẩu thì coi như lỗi mật khẩu (PasswordException, mã 1 = cần mật khẩu)
-                const err = cancelledByUser ? { name: 'PasswordException', code: 1, message: 'Chưa nhập mật khẩu' } : e;
+                const err = cancelledByUser ? { name: 'PasswordException', code: 1, message: t('Chưa nhập mật khẩu') } : e;
                 teardownDocument();
                 resetToDefaultState();
                 document.title = name;
                 $('app-title').textContent = name;
-                showError({ title: 'Không giải mã được', desc: `Không thể giải mã “${name}”`, code: errorCode(err), message: err && err.message });
+                showError({ title: t('Không giải mã được'), desc: t('Không thể giải mã “{name}”', { name }), code: errorCode(err), message: err && err.message });
             }
         }
 
@@ -891,24 +910,24 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             lastSource = { file, handle };
             if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
                 // đang mở tài liệu khác thì giữ nguyên tài liệu đó (tránh mất chỉnh sửa), chỉ báo nhẹ
-                if (pdfDoc) { toast(`“${file.name}” không phải là tệp PDF.`); return; }
+                if (pdfDoc) { toast(t('“{name}” không phải là tệp PDF.', { name: file.name })); return; }
                 document.title = file.name;
                 $('app-title').textContent = file.name;
-                showError({ title: 'Không mở được', desc: `“${file.name}” không phải là tệp PDF.`, code: 'NotPDFError', message: 'Loại tệp: ' + (file.type || 'không rõ') });
+                showError({ title: t('Không mở được'), desc: t('“{name}” không phải là tệp PDF.', { name: file.name }), code: 'NotPDFError', message: t('Loại tệp: ') + (file.type || t('không rõ')) });
                 return;
             }
-            if (pdfDoc && isDirty() && !confirm('Bạn có thay đổi chưa lưu. Vẫn mở tệp khác?')) return;
+            if (pdfDoc && isDirty() && !confirm(t('Bạn có thay đổi chưa lưu. Vẫn mở tệp khác?'))) return;
             fileInfo = { name: file.name, size: file.size, lastModified: file.lastModified, handle };
             file.arrayBuffer()
                 .then(buf => loadPDF(new Uint8Array(buf), file.name))
-                .catch(e => showError({ title: 'Không mở được', desc: `Không thể đọc “${file.name}”.`, code: errorCode(e), message: e && e.message }));
+                .catch(e => showError({ title: t('Không mở được'), desc: t('Không thể đọc “{name}”.', { name: file.name }), code: errorCode(e), message: e && e.message }));
         }
 
         async function openFile() {
             closeMenu();
             if (window.showOpenFilePicker) {
                 try {
-                    const [h] = await window.showOpenFilePicker({ types: [{ description: 'Tệp PDF', accept: { 'application/pdf': ['.pdf'] } }], multiple: false });
+                    const [h] = await window.showOpenFilePicker({ types: [{ description: t('Tệp PDF'), accept: { 'application/pdf': ['.pdf'] } }], multiple: false });
                     loadFile(await h.getFile(), h);
                     return;
                 } catch (e) { if (e && e.name === 'AbortError') return; }
@@ -1110,7 +1129,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 wrapper._key = key;
                 wrapper.classList.remove('loading');
             } catch (err) {
-                if (!err || err.name !== 'RenderingCancelledException') console.error('Lỗi vẽ trang ' + num, err);
+                if (!err || err.name !== 'RenderingCancelledException') console.error(t('Lỗi vẽ trang ') + num, err);
             } finally {
                 if (wrapper._pendingKey === key) wrapper._pendingKey = null;
                 const t = renderTasks.get(num);
@@ -1140,7 +1159,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             const a = document.createElement('a');
             a.style.cssText = `left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px`;
             if (href) { a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = title || href; }
-            else { a.href = '#'; a.title = 'Đi tới trang liên kết'; a.addEventListener('click', e => { e.preventDefault(); goToDest(dest); }); }
+            else { a.href = '#'; a.title = t('Đi tới trang liên kết'); a.addEventListener('click', e => { e.preventDefault(); goToDest(dest); }); }
             a.addEventListener('dragstart', e => e.preventDefault());
             return a;
         }
@@ -1272,13 +1291,13 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             e.clipboardData.setData('text/plain', t);
             e.preventDefault();
         });
-        async function copyText(t, okMsg) {
-            try { await navigator.clipboard.writeText(t); }
+        async function copyText(text, okMsg) {
+            try { await navigator.clipboard.writeText(text); }
             catch (_) {
-                const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0';
+                const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
                 document.body.append(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove();
             }
-            toast(okMsg || 'Đã sao chép');
+            toast(okMsg || t('Đã sao chép'));
         }
         function selectPageText(layer) {
             const r = document.createRange(); r.selectNodeContents(layer);
@@ -1289,71 +1308,71 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             e.preventDefault();
             if (e.target.closest && e.target.closest('.menu')) return;
             closeMenu();
-            const t = e.target, point = { x: e.clientX, y: e.clientY }, items = [];
+            const tg = e.target, point = { x: e.clientX, y: e.clientY }, items = [];
             const anchor = { contains: () => false };
 
             // Ô nhập liệu / văn bản đang soạn: cắt, chép, dán
-            const field = t.closest && t.closest('input, textarea, [contenteditable]');
+            const field = tg.closest && tg.closest('input, textarea, [contenteditable]');
             if (field) {
                 const hasSel = field.isContentEditable ? !getSelection().isCollapsed : field.selectionStart !== field.selectionEnd;
                 const ro = field.readOnly || field.disabled;
                 items.push(
-                    { label: 'Cắt', icon: 'content_cut', kbd: 'Ctrl X', disabled: !hasSel || ro, onClick: () => { field.focus(); document.execCommand('cut'); } },
-                    { label: 'Sao chép', icon: 'content_copy', kbd: 'Ctrl C', disabled: !hasSel, onClick: () => { field.focus(); document.execCommand('copy'); } },
-                    { label: 'Dán', icon: 'content_paste', kbd: 'Ctrl V', disabled: ro, onClick: async () => {
+                    { label: t('Cắt'), icon: 'content_cut', kbd: 'Ctrl X', disabled: !hasSel || ro, onClick: () => { field.focus(); document.execCommand('cut'); } },
+                    { label: t('Sao chép'), icon: 'content_copy', kbd: 'Ctrl C', disabled: !hasSel, onClick: () => { field.focus(); document.execCommand('copy'); } },
+                    { label: t('Dán'), icon: 'content_paste', kbd: 'Ctrl V', disabled: ro, onClick: async () => {
                         try { const tx = await navigator.clipboard.readText(); field.focus(); document.execCommand('insertText', false, tx); }
-                        catch (_) { toast('Hãy dùng Ctrl+V để dán'); }
+                        catch (_) { toast(t('Hãy dùng Ctrl+V để dán')); }
                     } },
                     { divider: true },
-                    { label: 'Chọn tất cả', icon: 'select_all', kbd: 'Ctrl A', onClick: () => { field.focus(); document.execCommand('selectAll'); } }
+                    { label: t('Chọn tất cả'), icon: 'select_all', kbd: 'Ctrl A', onClick: () => { field.focus(); document.execCommand('selectAll'); } }
                 );
                 openMenu(anchor, items, { point });
                 return;
             }
 
             // Liên kết
-            const link = t.closest && t.closest('.linkLayer a');
+            const link = tg.closest && tg.closest('.linkLayer a');
             if (link) {
                 const href = link.getAttribute('href');
                 if (href && href !== '#') {
                     const mail = /^mailto:/i.test(href);
                     items.push(
-                        { label: mail ? 'Soạn email' : 'Mở liên kết trong thẻ mới', icon: mail ? 'mail' : 'open_in_new', onClick: () => window.open(href, '_blank', 'noopener,noreferrer') },
-                        { label: mail ? 'Sao chép địa chỉ email' : 'Sao chép địa chỉ liên kết', icon: 'link', onClick: () => copyText(href.replace(/^mailto:/i, ''), 'Đã sao chép liên kết') }
+                        { label: mail ? t('Soạn email') : t('Mở liên kết trong thẻ mới'), icon: mail ? 'mail' : 'open_in_new', onClick: () => window.open(href, '_blank', 'noopener,noreferrer') },
+                        { label: mail ? t('Sao chép địa chỉ email') : t('Sao chép địa chỉ liên kết'), icon: 'link', onClick: () => copyText(href.replace(/^mailto:/i, ''), t('Đã sao chép liên kết')) }
                     );
-                } else items.push({ label: 'Đi tới trang liên kết', icon: 'arrow_forward', onClick: () => link.click() });
+                } else items.push({ label: t('Đi tới trang liên kết'), icon: 'arrow_forward', onClick: () => link.click() });
                 items.push({ divider: true });
             }
 
             // Chữ đang chọn / chữ trong trang
-            const layer = t.closest && t.closest('.textLayer') || (t.closest && t.closest('[data-page-number]') && t.closest('[data-page-number]').querySelector('.textLayer'));
+            const layer = tg.closest && tg.closest('.textLayer') || (tg.closest && tg.closest('[data-page-number]') && tg.closest('[data-page-number]').querySelector('.textLayer'));
             const selTxt = selectionText();
             if (selTxt) {
                 const short = selTxt.replace(/\s+/g, ' ').trim();
                 items.push(
-                    { label: 'Sao chép', icon: 'content_copy', kbd: 'Ctrl C', onClick: () => copyText(selTxt) },
-                    { label: 'Tìm trên Google “' + (short.length > 24 ? short.slice(0, 24) + '…' : short) + '”', icon: 'search', onClick: () => window.open('https://www.google.com/search?q=' + encodeURIComponent(short.slice(0, 300)), '_blank', 'noopener,noreferrer') }
+                    { label: t('Sao chép'), icon: 'content_copy', kbd: 'Ctrl C', onClick: () => copyText(selTxt) },
+                    { label: t('Tìm trên Google “') + (short.length > 24 ? short.slice(0, 24) + '…' : short) + '”', icon: 'search', onClick: () => window.open('https://www.google.com/search?q=' + encodeURIComponent(short.slice(0, 300)), '_blank', 'noopener,noreferrer') }
                 );
             }
-            if (layer) items.push({ label: 'Chọn tất cả chữ trong trang', icon: 'select_all', onClick: () => selectPageText(layer) });
+            if (layer) items.push({ label: t('Chọn tất cả chữ trong trang'), icon: 'select_all', onClick: () => selectPageText(layer) });
             if (items.length && !items[items.length - 1].divider) items.push({ divider: true });
 
             if (pdfDoc) {
-                const wr = t.closest && t.closest('[data-page-number]');
+                const wr = tg.closest && tg.closest('[data-page-number]');
                 const pn = wr ? +wr.dataset.pageNumber : 0;
                 items.push(
-                    { label: 'Hoàn tác', icon: 'undo', kbd: 'Ctrl Z', disabled: hi <= 0, onClick: undo },
-                    { label: 'Làm lại', icon: 'redo', kbd: 'Ctrl Y', disabled: hi >= hist.length - 1, onClick: redo },
+                    { label: t('Hoàn tác'), icon: 'undo', kbd: 'Ctrl Z', disabled: hi <= 0, onClick: undo },
+                    { label: t('Làm lại'), icon: 'redo', kbd: 'Ctrl Y', disabled: hi >= hist.length - 1, onClick: redo },
                     { divider: true },
-                    { label: 'Phóng to', icon: 'zoom_in', kbd: 'Ctrl +', onClick: () => setZoom(relZoom() * 1.25) },
-                    { label: 'Thu nhỏ', icon: 'zoom_out', kbd: 'Ctrl -', onClick: () => setZoom(relZoom() / 1.25) },
-                    { label: 'Xoay trang', icon: 'rotate_left', disabled: !pn, onClick: () => rotatePage(pn) },
+                    { label: t('Phóng to'), icon: 'zoom_in', kbd: 'Ctrl +', onClick: () => setZoom(relZoom() * 1.25) },
+                    { label: t('Thu nhỏ'), icon: 'zoom_out', kbd: 'Ctrl -', onClick: () => setZoom(relZoom() / 1.25) },
+                    { label: t('Xoay trang'), icon: 'rotate_left', disabled: !pn, onClick: () => rotatePage(pn) },
                     { divider: true },
-                    { label: 'In', icon: 'print', kbd: 'Ctrl P', onClick: preparePrint },
-                    { label: 'Lưu', icon: 'save', kbd: 'Ctrl S', disabled: !isDirty(), onClick: () => saveDoc('save') },
-                    { label: 'Thông tin', icon: 'info', onClick: openInfo }
+                    { label: t('In'), icon: 'print', kbd: 'Ctrl P', onClick: preparePrint },
+                    { label: t('Lưu'), icon: 'save', kbd: 'Ctrl S', disabled: !isDirty(), onClick: () => saveDoc('save') },
+                    { label: t('Thông tin'), icon: 'info', onClick: openInfo }
                 );
-            } else items.push({ label: 'Mở tệp…', icon: 'file_open', onClick: openFile });
+            } else items.push({ label: t('Mở tệp…'), icon: 'file_open', onClick: openFile });
             openMenu(anchor, items, { point });
         }, true);
         viewer.addEventListener('scroll', () => closeMenu(), { passive: true });
@@ -1434,18 +1453,18 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
 
         function updateInputs() {
             const rel = relZoom();
-            $('zoom-btn').title = `Thu phóng (${Math.round(rel * 100)}%)`;
+            $('zoom-btn').title = t('Thu phóng ({n}%)', { n: Math.round(rel * 100) });
             $('curr-page-input').value = currPage;
         }
 
         function openZoomMenu(anchor) {
             const rel = relZoom();
             const items = [
-                { label: 'Vừa chiều rộng', icon: 'fit_width', onClick: () => setZoom(1) },
-                { label: 'Vừa trang', icon: 'fit_page_width', onClick: fitPage },
+                { label: t('Vừa chiều rộng'), icon: 'fit_width', onClick: () => setZoom(1) },
+                { label: t('Vừa trang'), icon: 'fit_page_width', onClick: fitPage },
                 { divider: true },
-                { label: 'Phóng to', icon: 'zoom_in', kbd: 'Ctrl +', disabled: rel >= MAX_ZOOM - 1e-6, onClick: zoomIn },
-                { label: 'Thu nhỏ', icon: 'zoom_out', kbd: 'Ctrl −', disabled: rel <= MIN_ZOOM + 1e-6, onClick: zoomOut },
+                { label: t('Phóng to'), icon: 'zoom_in', kbd: 'Ctrl +', disabled: rel >= MAX_ZOOM - 1e-6, onClick: zoomIn },
+                { label: t('Thu nhỏ'), icon: 'zoom_out', kbd: 'Ctrl −', disabled: rel <= MIN_ZOOM + 1e-6, onClick: zoomOut },
                 { divider: true },
                 ...[50, 75, 100, 125, 150, 200, 300].map(p => ({ label: p + '%', selected: Math.round(rel * 100) === p, onClick: () => setZoom(p / 100) }))
             ];
@@ -1500,7 +1519,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 const item = el('div', { class: 'thumb-item', id: `thumb-${i}`, 'data-page': i, onclick: () => goToPage(i) },
                     el('div', { class: 'thumb-side' },
                         el('div', { text: String(i) }),
-                        el('button', { class: 'icon-btn', title: 'Xoay trang', 'aria-label': 'Xoay trang ' + i, onclick: e => { e.stopPropagation(); rotatePage(i); } }, icon('rotate_90_degrees_ccw'))),
+                        el('button', { class: 'icon-btn', title: t('Xoay trang'), 'aria-label': t('Xoay trang') + ' ' + i, onclick: e => { e.stopPropagation(); rotatePage(i); } }, icon('rotate_90_degrees_ccw'))),
                     el('div', { class: 'thumb-img' }, can));
                 frag.appendChild(item);
             }
@@ -1968,7 +1987,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
         function signDown(e, n) {
             e.preventDefault();
             const sg = sigs[activeSig];
-            if (!sg) { toast('Hãy chọn hoặc tạo chữ ký trước.'); return; }
+            if (!sg) { toast(t('Hãy chọn hoặc tạo chữ ký trước.')); return; }
             const [x, y] = toV0(n, e.clientX, e.clientY);
             const pw = (pageSizes[n] || pageSizes[1]).w;
             const w = Math.min(150, pw * 0.4), h = w * sg.h / sg.w;
@@ -2066,9 +2085,9 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             let { h, s, v } = hexToHsv(current) || { h: 0, s: 0, v: 0 };
             const sv = el('div', { class: 'cp-sv' }), svThumb = el('div', { class: 'cp-thumb' }); sv.append(svThumb);
             const hue = el('div', { class: 'cp-hue' }), hueThumb = el('div', { class: 'cp-thumb' }); hue.append(hueThumb);
-            const inp = el('input', { type: 'text', value: current.toUpperCase(), maxlength: 7, spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Mã màu hệ lục phân' });
-            const field = el('div', { class: 'cp-field' }, el('label', { text: 'Hệ lục phân' }), inp);
-            const eye = el('button', { class: 'cp-eye', title: 'Chọn màu từ màn hình', 'aria-label': 'Chọn màu từ màn hình' }, icon('colorize'));
+            const inp = el('input', { type: 'text', value: current.toUpperCase(), maxlength: 7, spellcheck: 'false', autocomplete: 'off', 'aria-label': t('Mã màu hệ lục phân') });
+            const field = el('div', { class: 'cp-field' }, el('label', { text: t('Hệ lục phân') }), inp);
+            const eye = el('button', { class: 'cp-eye', title: t('Chọn màu từ màn hình'), 'aria-label': t('Chọn màu từ màn hình') }, icon('colorize'));
             function paint(skipInput) {
                 const hex = hsvToHex(h, s, v), hx = hsvToHex(h, 1, 1);
                 sv.style.backgroundColor = hx;
@@ -2098,7 +2117,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             });
             inp.addEventListener('blur', () => paint());
             eye.addEventListener('click', async () => {
-                if (!window.EyeDropper) { toast('Trình duyệt này chưa hỗ trợ ống nhỏ giọt'); return; }
+                if (!window.EyeDropper) { toast(t('Trình duyệt này chưa hỗ trợ ống nhỏ giọt')); return; }
                 try {
                     const r = await new EyeDropper().open(), c = hexToHsv(r.sRGBHex);
                     if (c) { ({ s, v } = c); if (c.s > 0 && c.v > 0) h = c.h; onChange(paint()); }
@@ -2128,36 +2147,36 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
         }
 
         function buildTextPanel(inner) {
-            const t = textTarget() || textStyle;
-            const f = FONTS[t.font] || FONTS.roboto;
+            const ts = textTarget() || textStyle;
+            const f = FONTS[ts.font] || FONTS.roboto;
             const fontBtn = el('button', { class: 'dd-btn', style: `font-family:"${f.css}",${f.generic}`, onclick: e => openMenu(e.currentTarget,
-                Object.keys(FONTS).map(k => ({ label: FONTS[k].label, selected: k === t.font, style: `font-family:"${FONTS[k].css}",${FONTS[k].generic}`, onClick: () => setTextProp('font', k) })), { }) },
+                Object.keys(FONTS).map(k => ({ label: FONTS[k].label, selected: k === ts.font, style: `font-family:"${FONTS[k].css}",${FONTS[k].generic}`, onClick: () => setTextProp('font', k) })), { }) },
                 el('span', { text: f.label }), icon('arrow_drop_down'));
             const sizeBtn = el('button', { class: 'dd-btn', onclick: e => openMenu(e.currentTarget,
-                FONT_SIZES.map(s => ({ label: String(s), selected: s === t.size, onClick: () => setTextProp('size', s) }))) },
-                el('span', { text: String(t.size) }), icon('arrow_drop_down'));
+                FONT_SIZES.map(s => ({ label: String(s), selected: s === ts.size, onClick: () => setTextProp('size', s) }))) },
+                el('span', { text: String(ts.size) }), icon('arrow_drop_down'));
             const tog = (ic, on, fn, label) => el('button', { class: 'seg-btn' + (on ? ' active' : ''), onclick: fn, title: label, 'aria-label': label, 'aria-pressed': on }, icon(ic));
             inner.append(
-                el('div', { class: 'panel-label', text: 'Phông chữ' }), fontBtn, sizeBtn,
-                el('div', { class: 'panel-label', text: 'Kiểu' }),
-                el('div', { class: 'seg' }, tog('format_bold', t.bold, () => setTextProp('bold', !t.bold), 'In đậm'), tog('format_italic', t.italic, () => setTextProp('italic', !t.italic), 'In nghiêng')),
+                el('div', { class: 'panel-label', text: t('Phông chữ') }), fontBtn, sizeBtn,
+                el('div', { class: 'panel-label', text: t('Kiểu') }),
+                el('div', { class: 'seg' }, tog('format_bold', ts.bold, () => setTextProp('bold', !ts.bold), t('In đậm')), tog('format_italic', ts.italic, () => setTextProp('italic', !ts.italic), t('In nghiêng'))),
                 el('div', { class: 'seg', style: 'margin-top:8px' },
-                    tog('format_align_left', t.align === 'left', () => setTextProp('align', 'left'), 'Căn trái'),
-                    tog('format_align_center', t.align === 'center', () => setTextProp('align', 'center'), 'Căn giữa'),
-                    tog('format_align_right', t.align === 'right', () => setTextProp('align', 'right'), 'Căn phải'),
-                    tog('format_align_justify', t.align === 'justify', () => setTextProp('align', 'justify'), 'Căn đều hai bên')),
-                el('div', { class: 'panel-label', text: 'Màu văn bản' }),
-                colorGrid(t.color, c => setTextProp('color', c)),
-                el('div', { class: 'panel-hint', text: 'Nhấp vào trang để thêm văn bản. Kéo chấm tròn ở góc để đổi độ rộng, dùng công cụ Chọn để di chuyển.' })
+                    tog('format_align_left', ts.align === 'left', () => setTextProp('align', 'left'), t('Căn trái')),
+                    tog('format_align_center', ts.align === 'center', () => setTextProp('align', 'center'), t('Căn giữa')),
+                    tog('format_align_right', ts.align === 'right', () => setTextProp('align', 'right'), t('Căn phải')),
+                    tog('format_align_justify', ts.align === 'justify', () => setTextProp('align', 'justify'), t('Căn đều hai bên'))),
+                el('div', { class: 'panel-label', text: t('Màu văn bản') }),
+                colorGrid(ts.color, c => setTextProp('color', c)),
+                el('div', { class: 'panel-hint', text: t('Nhấp vào trang để thêm văn bản. Kéo chấm tròn ở góc để đổi độ rộng, dùng công cụ Chọn để di chuyển.') })
             );
         }
 
         function buildDrawPanel(inner) {
             const mode = inkCfg.mode, cfg = inkCfg[mode];
             const modeBtn = (m, ic, label) => el('button', { class: 'seg-btn' + (mode === m ? ' active' : ''), title: label, 'aria-label': label, onclick: () => { inkCfg.mode = m; renderPanel(); } }, icon(ic));
-            inner.append(el('div', { class: 'mode-row' }, modeBtn('pen', 'ink_pen', 'Bút'), modeBtn('hl', 'ink_highlighter', 'Bút tô sáng'), modeBtn('eraser', 'ink_eraser', 'Tẩy')));
+            inner.append(el('div', { class: 'mode-row' }, modeBtn('pen', 'ink_pen', t('Bút')), modeBtn('hl', 'ink_highlighter', t('Bút tô sáng')), modeBtn('eraser', 'ink_eraser', t('Tẩy'))));
             if (mode === 'eraser') {
-                inner.append(el('div', { class: 'panel-hint', text: 'Chạm hoặc kéo lên nét vẽ để xoá cả nét đó.' }));
+                inner.append(el('div', { class: 'panel-hint', text: t('Chạm hoặc kéo lên nét vẽ để xoá cả nét đó.') }));
                 return;
             }
             const widths = mode === 'hl' ? HL_WIDTHS : PEN_WIDTHS;
@@ -2169,11 +2188,11 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 const ln = document.createElementNS(SVGNS, 'line');
                 ln.setAttribute('x1', 6); ln.setAttribute('y1', 22); ln.setAttribute('x2', 22); ln.setAttribute('y2', 6); ln.setAttribute('stroke-width', lw);
                 svg.append(ln);
-                sizes.append(el('button', { class: 'size-btn' + (cfg.size === i ? ' active' : ''), 'aria-label': 'Kích thước ' + (i + 1), onclick: () => { cfg.size = i; renderPanel(); } }, svg));
+                sizes.append(el('button', { class: 'size-btn' + (cfg.size === i ? ' active' : ''), 'aria-label': t('Kích thước ') + (i + 1), onclick: () => { cfg.size = i; renderPanel(); } }, svg));
             });
-            inner.append(el('div', { class: 'panel-label', text: 'Kích thước' }), sizes);
+            inner.append(el('div', { class: 'panel-label', text: t('Kích thước') }), sizes);
             const tab = (id, label) => el('button', { class: 'seg-tab' + (inkCfg.tab === id ? ' active' : ''), onclick: () => { inkCfg.tab = id; renderPanel(); } }, inkCfg.tab === id ? icon('check') : null, label);
-            inner.append(el('div', { class: 'panel-label', style: 'margin-top:20px' }), el('div', { class: 'seg-tabs' }, tab('palette', 'Bảng màu'), tab('custom', 'Tuỳ chỉnh')));
+            inner.append(el('div', { class: 'panel-label', style: 'margin-top:20px' }), el('div', { class: 'seg-tabs' }, tab('palette', t('Bảng màu')), tab('custom', t('Tuỳ chỉnh'))));
             if (inkCfg.tab === 'palette') inner.append(colorGrid(cfg.color, c => { cfg.color = c; renderPanel(); }));
             else inner.append(colorPicker(cfg.color, c => { cfg.color = c; }));
         }
@@ -2181,13 +2200,13 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
         function saveSigs() { try { localStorage.setItem(SIG_KEY, JSON.stringify(sigs)); } catch (e) {} }
         function buildSignPanel(inner) {
             if (!sigs.length) {
-                inner.append(el('div', { class: 'sig-empty', text: 'Tạo chữ ký để bắt đầu' }));
+                inner.append(el('div', { class: 'sig-empty', text: t('Tạo chữ ký để bắt đầu') }));
             } else {
                 sigs.forEach((s, i) => {
                     inner.append(el('div', { class: 'sig-card-item' + (i === activeSig ? ' active' : ''), onclick: () => { activeSig = i; renderPanel(); } },
-                        el('div', { class: 'sig-thumb' }, el('img', { src: s.src, alt: 'Chữ ký ' + (i + 1) })),
-                        el('a', { class: 'icon-btn', href: s.src, download: 'chu-ky.png', title: 'Tải chữ ký xuống', 'aria-label': 'Tải chữ ký xuống', onclick: e => e.stopPropagation() }, icon('download')),
-                        el('button', { class: 'icon-btn', title: 'Xoá chữ ký', 'aria-label': 'Xoá chữ ký', onclick: e => {
+                        el('div', { class: 'sig-thumb' }, el('img', { src: s.src, alt: t('Chữ ký ') + (i + 1) })),
+                        el('a', { class: 'icon-btn', href: s.src, download: 'chu-ky.png', title: t('Tải chữ ký xuống'), 'aria-label': t('Tải chữ ký xuống'), onclick: e => e.stopPropagation() }, icon('download')),
+                        el('button', { class: 'icon-btn', title: t('Xoá chữ ký'), 'aria-label': t('Xoá chữ ký'), onclick: e => {
                             e.stopPropagation();
                             sigs.splice(i, 1);
                             if (activeSig === i) activeSig = -1; else if (activeSig > i) activeSig--;
@@ -2196,8 +2215,8 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 });
             }
             inner.append(el('div', { style: 'text-align:center;margin-top:6px' },
-                el('button', { class: 'text-btn tonal', style: 'display:inline-flex', onclick: openSigDialog }, icon('signature'), el('span', { text: sigs.length ? 'Vẽ một chữ ký khác' : 'Vẽ chữ ký' }))));
-            if (sigs.length) inner.append(el('div', { class: 'panel-hint', text: activeSig >= 0 ? 'Nhấp vào trang để đặt chữ ký.' : 'Chọn một chữ ký, rồi nhấp vào trang để đặt.' }));
+                el('button', { class: 'text-btn tonal', style: 'display:inline-flex', onclick: openSigDialog }, icon('signature'), el('span', { text: sigs.length ? t('Vẽ một chữ ký khác') : t('Vẽ chữ ký') }))));
+            if (sigs.length) inner.append(el('div', { class: 'panel-hint', text: activeSig >= 0 ? t('Nhấp vào trang để đặt chữ ký.') : t('Chọn một chữ ký, rồi nhấp vào trang để đặt.') }));
         }
 
 // ----- Hộp thoại vẽ chữ ký -----
@@ -2351,7 +2370,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 saveSigs();
                 closeSigDialog();
                 renderPanel();
-                toast('Đã lưu chữ ký');
+                toast(t('Đã lưu chữ ký'));
             } catch (err) {
                 console.error('Lỗi lưu chữ ký:', err);
                 closeSigDialog();
@@ -2369,17 +2388,17 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             body.textContent = '';
             const row = (ic, title, sub) => el('div', { class: 'info-row' }, icon(ic), el('div', {}, el('div', { class: 'info-title', text: title }), el('div', { class: 'info-sub', text: sub })));
             body.append(
-                row('picture_as_pdf', 'Tài liệu PDF', fmtSize(fileInfo.size)),
-                row('calendar_today', 'Ngày sửa đổi', fmtDate(fileInfo.lastModified)),
-                row('description', 'Số lượng trang', String(pdfDoc.numPages)),
-                row('calendar_today', 'Ngày tạo', fmtDate(parsePdfDate(info.CreationDate))),
+                row('picture_as_pdf', t('Tài liệu PDF'), fmtSize(fileInfo.size)),
+                row('calendar_today', t('Ngày sửa đổi'), fmtDate(fileInfo.lastModified)),
+                row('description', t('Số lượng trang'), String(pdfDoc.numPages)),
+                row('calendar_today', t('Ngày tạo'), fmtDate(parsePdfDate(info.CreationDate))),
                 el('div', { class: 'info-divider' }));
             const kv = [
-                ['Ứng dụng:', info.Creator], ['Phần mềm chuyển đổi:', info.Producer], ['Phiên bản PDF:', info.PDFFormatVersion],
-                ['Chế độ xem nhanh trên web:', info.IsLinearized ? 'Có' : 'Không']
+                [t('Ứng dụng:'), info.Creator], [t('Phần mềm chuyển đổi:'), info.Producer], [t('Phiên bản PDF:'), info.PDFFormatVersion],
+                [t('Chế độ xem nhanh trên web:'), info.IsLinearized ? t('Có') : t('Không')]
             ];
-            if (info.Title) kv.push(['Tiêu đề:', info.Title]);
-            if (info.Author) kv.push(['Tác giả:', info.Author]);
+            if (info.Title) kv.push([t('Tiêu đề:'), info.Title]);
+            if (info.Author) kv.push([t('Tác giả:'), info.Author]);
             const grid = el('div', { class: 'info-kv' });
             kv.forEach(([k, v]) => grid.append(el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v ? String(v) : '—' })));
             body.append(grid);
@@ -2392,29 +2411,39 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
         // ====================================================================
         async function shareFile() {
             if (!pdfDoc) return;
-            if (isDirty()) { toast('Hãy lưu thay đổi trước khi chia sẻ.'); return; }
+            if (isDirty()) { toast(t('Hãy lưu thay đổi trước khi chia sẻ.')); return; }
             try {
                 const bytes = await pdfDoc.getData();
                 const file = new File([bytes], fileInfo.name || 'tai-lieu.pdf', { type: 'application/pdf' });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: file.name });
-                else toast('Thiết bị này không hỗ trợ chia sẻ tệp.');
-            } catch (e) { if (!e || e.name !== 'AbortError') toast('Không chia sẻ được: ' + (e && e.message ? e.message : e)); }
+                else toast(t('Thiết bị này không hỗ trợ chia sẻ tệp.'));
+            } catch (e) { if (!e || e.name !== 'AbortError') toast(t('Không chia sẻ được: ') + (e && e.message ? e.message : e)); }
         }
 
         function openMoreMenu(anchor) {
             const has = !!pdfDoc;
             openMenu(anchor, [
-                { label: 'Mở tệp…', icon: 'file_open', onClick: openFile },
-                { label: 'Thông tin', icon: 'info', disabled: !has, onClick: openInfo },
+                { label: t('Mở tệp…'), icon: 'file_open', onClick: openFile },
+                { label: t('Thông tin'), icon: 'info', disabled: !has, onClick: openInfo },
                 { divider: true },
-                { label: 'Xoay tất cả các trang', icon: 'rotate_right', disabled: !has, onClick: rotateAll },
-                { label: sidebar.classList.contains('collapsed') ? 'Hiện các trang' : 'Ẩn các trang', icon: 'view_sidebar', disabled: !has, onClick: toggleSidebar }
+                { label: t('Xoay tất cả các trang'), icon: 'rotate_right', disabled: !has, onClick: rotateAll },
+                { label: sidebar.classList.contains('collapsed') ? t('Hiện các trang') : t('Ẩn các trang'), icon: 'view_sidebar', disabled: !has, onClick: toggleSidebar },
+                { divider: true },
+                { label: I18N.lang === 'vi' ? 'Ngôn ngữ / Language' : 'Language', icon: 'translate', onClick: () => openLangMenu(anchor) },
+                { label: t('Hướng dẫn bắt đầu'), icon: 'rocket_launch', onClick: () => GS.open(0) }
             ], { alignRight: true });
         }
+        function openLangMenu(anchor) {
+            setTimeout(() => openMenu(anchor, [
+                { label: 'Tiếng Việt', icon: I18N.lang === 'vi' ? 'check' : null, selected: I18N.lang === 'vi', onClick: () => I18N.setLang('vi') },
+                { label: 'English', icon: I18N.lang === 'en' ? 'check' : null, selected: I18N.lang === 'en', onClick: () => I18N.setLang('en') }
+            ], { alignRight: true }), 0);
+        }
+        I18N.onLang(() => { try { renderPanel(); updateInputs(); } catch (e) {} });
         function openSaveMenu(anchor) {
             openMenu(anchor, [
-                { label: 'Lưu', icon: 'save', kbd: 'Ctrl S', onClick: () => saveDoc('save') },
-                { label: 'Lưu thành bản sao…', icon: 'file_copy', onClick: () => saveDoc('copy') }
+                { label: t('Lưu'), icon: 'save', kbd: 'Ctrl S', onClick: () => saveDoc('save') },
+                { label: t('Lưu thành bản sao…'), icon: 'file_copy', onClick: () => saveDoc('copy') }
             ], { alignRight: true });
         }
 
@@ -2425,7 +2454,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             return new Promise((res, rej) => {
                 const s = document.createElement('script');
                 s.src = src; s.onload = res;
-                s.onerror = () => rej(new Error('Không tải được thư viện ' + src.split('/').slice(-1)[0] + ' (kiểm tra kết nối mạng)'));
+                s.onerror = () => rej(new Error(t('Không tải được thư viện ') + src.split('/').slice(-1)[0] + t(' (kiểm tra kết nối mạng)')));
                 document.head.appendChild(s);
             });
         }
@@ -2442,7 +2471,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             const url = fontUrl(key, bold, italic);
             if (!fontBytesCache.has(url)) {
                 const res = await fetch(url);
-                if (!res.ok) throw new Error('Không tải được font ' + FONTS[key].label);
+                if (!res.ok) throw new Error(t('Không tải được font ') + FONTS[key].label);
                 fontBytesCache.set(url, new Uint8Array(await res.arrayBuffer()));
             }
             return fontBytesCache.get(url);
@@ -2486,7 +2515,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
         }
 
         async function buildEditedPdf() {
-            if (docEncrypted) throw new Error('Chưa hỗ trợ lưu chỉnh sửa cho file có mật khẩu.');
+            if (docEncrypted) throw new Error(t('Chưa hỗ trợ lưu chỉnh sửa cho file có mật khẩu.'));
             await loadLibs();
             const { PDFDocument, degrees, LineCapStyle } = PDFLib;
             const bytes = await pdfDoc.getData();
@@ -2561,27 +2590,27 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
         }
         async function writeHandle(handle, bytes) {
             if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted' && (await handle.requestPermission({ mode: 'readwrite' })) !== 'granted')
-                throw new Error('Không có quyền ghi vào tệp.');
+                throw new Error(t('Không có quyền ghi vào tệp.'));
             const w = await handle.createWritable();
             await w.write(bytes);
             await w.close();
         }
-        const copyName = () => (fileInfo.name || 'tai-lieu.pdf').replace(/\.pdf$/i, '') + ' (bản sao).pdf';
+        const copyName = () => (fileInfo.name || 'tai-lieu.pdf').replace(/\.pdf$/i, '') + t(' (bản sao).pdf');
 
         async function saveDoc(mode) {
             closeMenu();
             if (!pdfDoc) return;
             if (editing) finishEdit();
             let bytes;
-            showBusy('Đang lưu...');
+            showBusy(t('Đang lưu...'));
             try { bytes = await buildEditedPdf(); }
-            catch (e) { hideBusy(); toast('Lỗi khi lưu: ' + (e && e.message ? e.message : e)); console.error(e); return; }
+            catch (e) { hideBusy(); toast(t('Lỗi khi lưu: ') + (e && e.message ? e.message : e)); console.error(e); return; }
             try {
                 if (mode === 'copy') {
                     if (window.showSaveFilePicker) {
                         hideBusy();
-                        const h = await window.showSaveFilePicker({ suggestedName: copyName(), types: [{ description: 'Tệp PDF', accept: { 'application/pdf': ['.pdf'] } }] });
-                        showBusy('Đang lưu...');
+                        const h = await window.showSaveFilePicker({ suggestedName: copyName(), types: [{ description: t('Tệp PDF'), accept: { 'application/pdf': ['.pdf'] } }] });
+                        showBusy(t('Đang lưu...'));
                         await writeHandle(h, bytes);
                         fileInfo.handle = h; fileInfo.name = h.name;
                     } else { downloadBytes(bytes, copyName()); fileInfo.handle = null; fileInfo.name = copyName(); }
@@ -2592,13 +2621,13 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 }
             } catch (e) {
                 hideBusy();
-                if (!e || e.name !== 'AbortError') toast('Lỗi khi lưu: ' + (e && e.message ? e.message : e));
+                if (!e || e.name !== 'AbortError') toast(t('Lỗi khi lưu: ') + (e && e.message ? e.message : e));
                 return;
             }
             const keep = { page: currPage, rel: relZoom() };
             fileInfo.size = bytes.length; fileInfo.lastModified = Date.now();
             try { await loadPDF(bytes, fileInfo.name, { restore: keep }); } finally { hideBusy(); }
-            toast('Đã lưu');
+            toast(t('Đã lưu'));
         }
 
         window.addEventListener('beforeunload', e => { if (pdfDoc && isDirty()) { e.preventDefault(); e.returnValue = ''; } });
@@ -2615,7 +2644,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             const status = $('print-status'), printZone = $('print-zone');
             const urls = [], imgs = [];
             let doc = pdfDoc, tmpDoc = null;
-            showBusy('Đang chuẩn bị trang in...');
+            showBusy(t('Đang chuẩn bị trang in...'));
             printZone.textContent = '';
 
             const cleanup = () => {
@@ -2629,14 +2658,14 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
 
             try {
                 if (isDirty()) {                       // in bản đã chỉnh sửa: dựng PDF mới (có chú thích + xoay trang) rồi in từ đó
-                    status.textContent = 'Đang áp dụng chỉnh sửa...';
+                    status.textContent = t('Đang áp dụng chỉnh sửa...');
                     const bytes = await buildEditedPdf();
                     tmpDoc = await pdfjsLib.getDocument(docOptions(bytes)).promise;
                     doc = tmpDoc;
                 }
                 for (let i = 1; i <= doc.numPages; i++) {
-                    if (!tmpDoc && doc !== pdfDoc) throw new Error('Đã đổi sang file khác');
-                    status.textContent = `Đang vẽ bản in: ${i} / ${doc.numPages}`;
+                    if (!tmpDoc && doc !== pdfDoc) throw new Error(t('Đã đổi sang file khác'));
+                    status.textContent = t('Đang vẽ bản in: {i} / {n}', { i, n: doc.numPages });
                     const page = await doc.getPage(i);
                     const rot = page.rotate;
                     let s = PRINT_SCALE;
@@ -2671,7 +2700,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 cleanup();
                 printing = false;
                 console.error(e);
-                toast('Lỗi chuẩn bị bản in: ' + (e && e.message ? e.message : e));
+                toast(t('Lỗi chuẩn bị bản in: ') + (e && e.message ? e.message : e));
                 return;
             }
 
@@ -2703,6 +2732,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             const mod = e.ctrlKey || e.metaKey, k = (e.key || '').toLowerCase();
             const typing = e.target && (e.target.isContentEditable || /^(input|textarea|select)$/i.test(e.target.tagName));
             if (mod && k === 'p' && pdfDoc) { e.preventDefault(); preparePrint(); return; }
+            if (mod && k === 'o') { e.preventDefault(); openFile(); return; }
             if (mod && k === 's') { e.preventDefault(); if (pdfDoc && isDirty()) saveDoc('save'); return; }
             if (typing) return;
             if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
@@ -2738,5 +2768,6 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
 
         updateUI();
     </script>
+    <script src="getting-started.js"></script>
 </body>
 </html>
