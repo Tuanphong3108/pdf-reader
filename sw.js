@@ -1,5 +1,5 @@
 // Đổi số phiên bản mỗi khi muốn ép máy người dùng xoá cache cũ
-const CACHE_NAME = 'pdf-reader-v14';
+const CACHE_NAME = 'pdf-reader-v15';
 
 // File của app: bắt buộc phải có
 const CORE_ASSETS = [

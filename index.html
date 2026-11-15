@@ -594,7 +594,7 @@
         const MAX_CANVAS_PIXELS = (LOW_MEM ? 6 : 16) * 1024 * 1024;
         const DPR_CAP = LOW_MEM ? 1.5 : 2;
         const PRINT_MAX_PIXELS = 12 * 1024 * 1024;
-        const PRINT_SCALE = 2;
+        const PRINT_SCALE = LOW_MEM ? 1.75 : 2;   // 2 = 144 dpi
         const THUMB_W = 200;
         const LH = 1.25;                         // line-height của hộp văn bản (phải khớp CSS .annBody)
         const PAD = 4;                           // padding của hộp văn bản (phải khớp CSS .annBody)
@@ -2715,10 +2715,14 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                     tmpDoc = await pdfjsLib.getDocument(docOptions(bytes)).promise;
                     doc = tmpDoc;
                 }
-                for (let i = 1; i <= doc.numPages; i++) {
+                // Vẽ trang này trong lúc trang trước đang được mã hoá JPEG / giải mã ảnh (chồng việc lên nhau cho nhanh)
+                const N = doc.numPages, jobs = [];
+                let ahead = doc.getPage(1);
+                for (let i = 1; i <= N; i++) {
                     if (!tmpDoc && doc !== pdfDoc) throw new Error(t('Đã đổi sang file khác'));
-                    status.textContent = t('Đang vẽ bản in: {i} / {n}', { i, n: doc.numPages });
-                    const page = await doc.getPage(i);
+                    status.textContent = t('Đang vẽ bản in: {i} / {n}', { i, n: N });
+                    const page = await ahead;
+                    if (i < N) { ahead = doc.getPage(i + 1); ahead.catch(() => {}); }
                     const rot = page.rotate;
                     let s = PRINT_SCALE;
                     const vp0 = page.getViewport({ scale: s, rotation: rot });
@@ -2728,25 +2732,29 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                     const canvas = document.createElement('canvas');
                     canvas.width = Math.floor(vp.width);
                     canvas.height = Math.floor(vp.height);
-                    const ctx = canvas.getContext('2d');
+                    const ctx = canvas.getContext('2d', { alpha: false });
                     ctx.fillStyle = '#fff';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     await page.render({ canvasContext: ctx, viewport: vp }).promise;
-
-                    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
-                    canvas.width = 0;
-                    const url = URL.createObjectURL(blob);
-                    urls.push(url);
+                    page.cleanup();
 
                     const holder = document.createElement('div');
                     holder.className = 'print-page';
                     const img = new Image();
-                    img.src = url;
                     holder.appendChild(img);
                     printZone.appendChild(holder);
                     imgs.push(img);
+                    jobs.push((async () => {
+                        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.88));
+                        canvas.width = 0;
+                        const url = URL.createObjectURL(blob);
+                        urls.push(url);
+                        img.src = url;
+                        await img.decode().catch(() => {});
+                    })());
+                    if (jobs.length >= 3) await jobs.shift();   // tối đa 3 trang đang chờ mã hoá (giữ RAM thấp)
                 }
-                await Promise.all(imgs.map(img => img.decode().catch(() => {})));
+                await Promise.all(jobs);
             } catch (e) {
                 hideBusy();
                 cleanup();
