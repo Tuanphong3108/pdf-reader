@@ -13,6 +13,8 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
@@ -786,6 +788,8 @@
             thumbObserver.disconnect();
             renderTasks.forEach(t => t.cancel());
             renderTasks.clear();
+            pendingRender.clear();
+            thumbQueue.length = 0;
             renderSet.clear();
             pagesContainer.textContent = '';
             sidebarContent.textContent = '';
@@ -1046,7 +1050,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 }
             });
             updateCurrentPage();
-        }, { root: viewer, rootMargin: '120% 0px', threshold: 0 });
+        }, { root: viewer, rootMargin: '80% 0px', threshold: 0 });
 
         // ====================================================================
         //  Vẽ trang (canvas + text layer + lớp chú thích)
@@ -1057,10 +1061,40 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
         }
         const stripLayers = wrapper => wrapper.querySelectorAll(':scope > canvas, :scope > .textLayer, :scope > .linkLayer').forEach(n => { if (n.tagName === 'CANVAS') n.width = 0; n.remove(); });
 
-        async function renderPage(num, wrapper) {
+        // Hàng đợi vẽ trang: vẽ tối đa MAX_PARALLEL trang cùng lúc, trang gần giữa màn hình được vẽ trước
+        const MAX_PARALLEL = 2;
+        const pendingRender = new Map();
+        let activeRenders = 0;
+        function renderPage(num, wrapper) {
+            if (!pdfDoc) return;
+            ensureAnnLayer(num, wrapper);
+            const key = scale + '|' + userRot(num);
+            if (wrapper.dataset.rendered === 'true' && wrapper._key === key) { wrapper.classList.remove('loading'); pendingRender.delete(num); return; }
+            if (wrapper._pendingKey === key) return;
+            if (wrapper._pendingKey) { wrapper._gen = (wrapper._gen || 0) + 1; cancelRender(num); }   // đang vẽ bản cũ (đổi zoom / xoay): huỷ
+            wrapper.classList.add('loading');
+            pendingRender.set(num, wrapper);
+            pumpRender();
+        }
+        function pumpRender() {
+            while (activeRenders < MAX_PARALLEL && pendingRender.size) {
+                const mid = viewer.scrollTop + viewer.clientHeight / 2;
+                let best = 0, bd = Infinity;
+                for (const [n, w] of pendingRender) {
+                    const d = Math.abs(w.offsetTop + w.offsetHeight / 2 - mid);
+                    if (d < bd) { bd = d; best = n; }
+                }
+                const w = pendingRender.get(best);
+                pendingRender.delete(best);
+                if (!renderSet.has(best) || !w.isConnected) continue;
+                activeRenders++;
+                drawPage(best, w).catch(() => {}).finally(() => { activeRenders--; pumpRender(); });
+            }
+        }
+
+        async function drawPage(num, wrapper) {
             const doc = pdfDoc;
             if (!doc) return;
-            ensureAnnLayer(num, wrapper);
             const key = scale + '|' + userRot(num);
             if (wrapper.dataset.rendered === 'true' && wrapper._key === key) { wrapper.classList.remove('loading'); return; }
             if (wrapper._pendingKey === key) return;
@@ -1086,7 +1120,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 wrapper.style.height = vp.height + 'px';
                 if (wrapper._ann) setLayerGeom(num, wrapper._ann);
 
-                const dpr = window.devicePixelRatio || 1;
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
                 let outScale = dpr;
                 if (vp.width * vp.height * dpr * dpr > MAX_CANVAS_PIXELS) outScale = Math.sqrt(MAX_CANVAS_PIXELS / (vp.width * vp.height));
                 newCanvas = document.createElement('canvas');
@@ -1100,7 +1134,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 newText.className = 'textLayer';
                 newText.style.setProperty('--scale-factor', vp.scale);
                 textTask = pdfjsLib.renderTextLayer({
-                    textContentSource: page.streamTextContent({ includeMarkedContent: true }),
+                    textContentSource: page.streamTextContent({ includeMarkedContent: false }),
                     container: newText,
                     viewport: vp
                 });
@@ -1113,21 +1147,22 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                     }
                 });
 
-                await Promise.all([
-                    canvasTask.promise,
-                    textTask.promise.catch(err => { if (!err || err.name !== 'AbortException') console.warn('Text layer lỗi:', err); })
-                ]);
+                // Hiện ảnh trang ngay khi vẽ xong, lớp chữ (chọn / copy / link) gắn sau
+                await canvasTask.promise;
                 if (stale()) return;
-
-                stripLayers(wrapper);
+                wrapper.querySelectorAll(':scope > canvas').forEach(n => { n.width = 0; n.remove(); });
                 wrapper.insertBefore(newCanvas, wrapper.firstChild);
-                addEndOfContent(newText);
-                wrapper.insertBefore(newText, wrapper._ann || null);
-                buildLinks(num, wrapper, newText, page, vp, stale);
-
                 wrapper.dataset.rendered = 'true';
                 wrapper._key = key;
                 wrapper.classList.remove('loading');
+                await textTask.promise.catch(err => { if (!err || err.name !== 'AbortException') console.warn('Text layer lỗi:', err); });
+                if (stale()) return;
+                wrapper.querySelectorAll(':scope > .textLayer, :scope > .linkLayer').forEach(n => n.remove());
+                addEndOfContent(newText);
+                wrapper.insertBefore(newText, wrapper._ann || null);
+                const later = window.requestIdleCallback || (f => setTimeout(f, 30));
+                later(() => { if (!stale()) buildLinks(num, wrapper, newText, page, vp, stale); }, { timeout: 800 });
+
             } catch (err) {
                 if (!err || err.name !== 'RenderingCancelledException') console.error(t('Lỗi vẽ trang ') + num, err);
             } finally {
@@ -1183,8 +1218,9 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                 }
             } catch (e) {}
             if (stale()) return;
-            // 2) Tự nhận diện URL / email trong chữ (gộp các span cùng một dòng)
+            // 2) Tự nhận diện URL / email trong chữ (gộp các span cùng một dòng) — bỏ qua nếu trang không có dấu hiệu URL / email
             try {
+                if (!/https?:\/\/|www\.|@/i.test(textLayer.textContent)) throw 0;
                 const wr = wrapper.getBoundingClientRect();
                 const spans = [...textLayer.querySelectorAll('span')].filter(sp => !sp.classList.contains('markedContent') && sp.firstChild && sp.firstChild.nodeType === 3 && sp.textContent);
                 const lines = [];
@@ -1225,7 +1261,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
                         }
                     }
                 }
-            } catch (e) { console.warn('Nhận diện liên kết lỗi:', e); }
+            } catch (e) { if (e) console.warn('Nhận diện liên kết lỗi:', e); }
             if (stale() || !layer.childNodes.length) return;
             wrapper.querySelectorAll(':scope > .linkLayer').forEach(n => n.remove());
             wrapper.insertBefore(layer, wrapper._ann || null);
@@ -1382,6 +1418,7 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             if (editing && editing.n === num) finishEdit();
             wrapper._gen = (wrapper._gen || 0) + 1;
             wrapper._pendingKey = null;
+            pendingRender.delete(num);
             cancelRender(num);
             stripLayers(wrapper);
             if (wrapper._ann) { wrapper._ann.remove(); wrapper._ann = null; }
@@ -1549,7 +1586,18 @@ scale = 0.5 * baseScale; // Mặc định mở file ở mức 50%
             can.width = w; can.height = h;
             if (thumbsObserving) thumbObserver.observe(item);
         }
-        async function renderThumb(num, item) {
+        // Thumbnail vẽ lần lượt, và nhường chỗ cho trang chính đang vẽ
+        const thumbQueue = [];
+        let thumbBusy = false, thumbTimer = 0;
+        function renderThumb(num, item) { thumbQueue.push([num, item]); pumpThumbs(); }
+        function pumpThumbs() {
+            if (thumbBusy || thumbTimer || !thumbQueue.length) return;
+            if (activeRenders > 0 || pendingRender.size) { thumbTimer = setTimeout(() => { thumbTimer = 0; pumpThumbs(); }, 80); return; }
+            const [n, it] = thumbQueue.shift();
+            thumbBusy = true;
+            renderThumbNow(n, it).finally(() => { thumbBusy = false; pumpThumbs(); });
+        }
+        async function renderThumbNow(num, item) {
             const doc = pdfDoc;
             if (!doc || item.dataset.done) return;
             try {
